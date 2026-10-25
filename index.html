@@ -25,6 +25,8 @@ nav button{margin:0;border-radius:0;background:none;color:var(--sub);border:0;pa
 .bar{height:6px;background:var(--ac);border-radius:3px;margin-top:3px}
 </style></head><body><main>
 <h1>家計簿 <span class="sub">端末内のみ保存</span></h1>
+<div id="remind" class="card" hidden style="border-color:var(--ac)"><div><b>バックアップの時期です</b></div><div class="sub" id="remind-t" style="margin:4px 0 0"></div>
+ <div class="row"><button id="r-go">バックアップを書き出す</button><button class="sec" id="r-later" style="margin-top:12px">あとで</button></div></div>
 <div id="v-add">
  <div class="card"><h2>記録を追加</h2>
   <label>日付</label><input type="date" id="f-date">
@@ -53,7 +55,9 @@ nav button{margin:0;border-radius:0;background:none;color:var(--sub);border:0;pa
  <div class="card"><h2>データ</h2>
   <button id="b-csv">CSVで書き出し</button><button class="sec" id="b-json">バックアップ(JSON)を書き出し</button>
   <button class="sec" id="b-imp">CSV/JSONを読み込み(追加)</button><input type="file" id="f-file" accept=".csv,.json,text/csv,application/json" hidden>
-  <p class="sub" id="cnt"></p></div>
+  <p class="sub" id="cnt"></p>
+  <label>書き出しのお知らせ(何日ごと・0でオフ)</label><div class="row"><input type="number" id="r-days" min="0" inputmode="numeric"><button class="sec" id="b-rd" style="margin-top:0">保存</button></div>
+  <p class="sub" id="r-last"></p></div>
  <div class="card"><h2>候補リスト(1行に1つ)</h2>
   <label>収支</label><textarea id="c-type" rows="4"></textarea>
   <label>口座</label><textarea id="c-acc" rows="5"></textarea>
@@ -105,6 +109,11 @@ function runFixed(){let n=0;const t=today(),cur=ymdP(t);const ci=cur.y*12+cur.m-
  (D.fixed||[]).forEach(f=>{const sp=f.start.split('-').map(Number);for(let i=sp[0]*12+sp[1]-1;i<=ci;i++){const date=toDate(i,f.day),k=f.id+'|'+date.slice(0,7);
   if(date<=t&&!D.fxDone[k]){D.fxDone[k]=1;D.recs.push({date,type:'支出',acc:f.acc,to:'',cat:f.cat,sub:f.sub||'',amt:f.amt,memo:f.name,fx:f.id});n++}}});
  if(n)save();return n}
+function remindUi(){const n=D.remindDays??30,last=D.lastExport||'',ds=last?dd(today(),last):null;
+ $('r-days').value=n;$('r-last').textContent=last?`前回の書き出し: ${last}(${ds}日前)`:'まだ書き出していません';
+ const show=n>0&&D.recs.length>0&&D.snooze!==today()&&(ds===null||ds>=n);$('remind').hidden=!show;
+ if(show)$('remind-t').textContent=ds===null?'まだバックアップを書き出していません。':`前回の書き出しから ${ds} 日たっています。`}
+function markExport(){D.lastExport=today();save();remindUi()}
 function cardCfg(c){return Object.assign({close:15,pay:10,lag:1,from:D.acc[0]},(D.cardCfg||{})[c])}
 function ymdP(s){const[y,m,d]=s.split('-').map(Number);return{y,m,d}}
 function dim(y,m){return new Date(y,m,0).getDate()}
@@ -123,7 +132,7 @@ function render(){
  const lm=$('l-sel').value;let rs=D.recs.map((r,i)=>({...r,i})).filter(r=>!lm||ym(r.date)===lm).sort((a,b)=>b.date.localeCompare(a.date)||b.i-a.i);if(!lm)rs=rs.slice(0,30);
  $('list').innerHTML=rs.map(r=>`<div class="rec"><div><div>${esc(r.date.slice(5))} ${esc(r.cat||'')}${r.sub?'／'+esc(r.sub):''}</div><div class="sub">${esc(r.type)}・${esc(r.acc)}${r.to?'→'+esc(r.to):''}${r.memo?'・'+esc(r.memo):''}</div></div>
   <div style="text-align:right"><b class="${r.type==='支出'?'neg':r.type==='収入'?'inc':''}">${yen(r.amt)}</b><button class="x" data-edit="${r.i}">編集</button><button class="x" data-del="${r.i}">削除</button></div></div>`).join('')||'<p class="sub">まだ記録がありません</p>';
- $('cnt').textContent=`記録 ${D.recs.length} 件`;
+ $('cnt').textContent=`記録 ${D.recs.length} 件`;remindUi();
  summary();
 }
 function summary(){
@@ -189,8 +198,11 @@ $('list').onclick=e=>{const ed=e.target.dataset.edit;if(ed!==undefined){const r=
  const i=e.target.dataset.del;if(i!==undefined&&confirm('この記録を削除しますか?')){D.recs.splice(+i,1);setEdit(null);save();fill();render()}};
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
  ['add','sum','graph','set'].forEach(v=>$('v-'+v).hidden=v!==b.dataset.v);if(b.dataset.v==='sum'||b.dataset.v==='graph')summary()});
-$('b-csv').onclick=()=>dl(`kakeibo_${today()}.csv`,'﻿'+[COLS,...D.recs.map(r=>[r.date,r.type,r.acc,r.to,r.cat,r.sub,r.amt,r.memo])].map(r=>r.map(csvEsc).join(',')).join('\r\n'),'text/csv');
-$('b-json').onclick=()=>dl(`kakeibo_backup_${today()}.json`,JSON.stringify(D),'application/json');
+$('b-csv').onclick=()=>{markExport();dl(`kakeibo_${today()}.csv`,'﻿'+[COLS,...D.recs.map(r=>[r.date,r.type,r.acc,r.to,r.cat,r.sub,r.amt,r.memo])].map(r=>r.map(csvEsc).join(',')).join('\r\n'),'text/csv')};
+$('b-json').onclick=()=>{markExport();dl(`kakeibo_backup_${today()}.json`,JSON.stringify(D),'application/json')};
+$('r-go').onclick=()=>$('b-json').onclick();
+$('r-later').onclick=()=>{D.snooze=today();save();remindUi()};
+$('b-rd').onclick=()=>{const v=Math.round(+$('r-days').value);D.remindDays=isNaN(v)||v<0?30:v;save();remindUi();alert(D.remindDays?D.remindDays+'日ごとにお知らせします':'お知らせをオフにしました')};
 $('b-imp').onclick=()=>$('f-file').click();
 $('f-file').onchange=async e=>{const f=e.target.files[0];if(!f)return;const t=await f.text();let n=0;
  try{if(f.name.endsWith('.json')){const j=JSON.parse(t);if(confirm('JSONを読み込みます。現在のデータは置き換えられます。よろしいですか?')){D=Object.assign({},DEF,j);n=D.recs.length}}
