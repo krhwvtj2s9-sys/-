@@ -1,3 +1,4 @@
+<!-- ver 3 -->
 <!doctype html>
 <html lang="ja"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -40,6 +41,7 @@ nav button{margin:0;border-radius:0;background:none;color:var(--sub);border:0;pa
   <div class="kv"><span>収支</span><b id="s-net" class="big"></b></div></div>
  <div class="card"><h2>支出の内訳</h2><div id="s-cat"></div></div>
  <div class="card"><h2>カード引落予定</h2><div id="s-bill"></div></div>
+ <div class="card"><h2>毎月の固定費</h2><div id="s-fx"></div></div>
  <div class="card"><h2>口座残高(期首残高+記録+カード引落)</h2><div id="s-acc"></div></div>
 </div>
 <div id="v-set" hidden>
@@ -53,6 +55,13 @@ nav button{margin:0;border-radius:0;background:none;color:var(--sub);border:0;pa
   <label>親細目</label><textarea id="c-cat" rows="8"></textarea>
   <label>カード口座(クレジット)</label><textarea id="c-card" rows="2"></textarea>
   <button id="b-save">候補を保存</button></div>
+ <div class="card"><h2>毎月の固定費(自動で記録)</h2><div id="fxlist"></div>
+  <label>名前</label><input id="x-name" placeholder="例: Claude">
+  <div class="row"><div><label>金額(円)</label><input type="number" id="x-amt" inputmode="numeric"></div><div><label>毎月の日</label><input type="number" id="x-day" value="1" min="1" max="31"></div></div>
+  <div class="row"><div><label>口座</label><select id="x-acc"></select></div><div><label>親細目</label><select id="x-cat"></select></div></div>
+  <label>細目</label><input id="x-sub"><label>開始月</label><input type="month" id="x-start">
+  <button id="b-fx">固定費を追加</button>
+  <p class="sub">アプリを開いたときに、その月の日付が来ている分を支出として自動で記録します。記録を消しても、同じ月の分は作り直しません。固定費を削除すると、これから先の分が止まります。過去の記録は残ります。</p></div>
  <div class="card"><h2>カードの設定</h2><div id="cardcfg"></div><button id="b-cc">カード設定を保存</button>
   <p class="sub">締め日の翌日からの利用分は、次の締め日の請求になります。締め後の月数が1なら、締め日の翌月が支払月です。支払日を過ぎると、引落元の口座から自動で引き落とします。</p></div>
  <div class="card"><h2>口座の期首残高(円)</h2><div id="opens"></div><button id="b-open">保存</button>
@@ -66,7 +75,7 @@ const $=id=>document.getElementById(id);
 const KEY='kakeibo.v1';
 const DEF={recs:[],type:['支出','収入','振替','調整'],acc:['現金','銀行口座','クレジットカード','PayPay','Suica'],
  cat:['食費','日用品','交通費','趣味・娯楽','交際費','衣類','通信費','家賃・光熱費','学費','給料','バイト代','仕送り','お小遣い','その他'],
- card:['クレジットカード'],open:{},cardCfg:{'クレジットカード':{close:15,pay:10,lag:1,from:'銀行口座'}}};
+ card:['クレジットカード'],open:{},fixed:[],fxDone:{},cardCfg:{'クレジットカード':{close:15,pay:10,lag:1,from:'銀行口座'}}};
 let D;
 function load(){try{D=Object.assign({},DEF,JSON.parse(localStorage.getItem(KEY)||'{}'))}catch(e){D=JSON.parse(JSON.stringify(DEF))}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(D))}catch(e){alert('保存できませんでした。書き出しでバックアップしてください。')}}
@@ -83,8 +92,14 @@ function fill(){
  $('opens').innerHTML=D.acc.map((a,i)=>`<label>${esc(a)}</label><input type="number" data-a="${esc(a)}" value="${D.open[a]||0}">`).join('');
  const lk=$('l-sel').value;$('l-sel').innerHTML='<option value="">直近30件</option>'+months().map(m=>`<option>${m}</option>`).join('');$('l-sel').value=lk;
  $('cardcfg').innerHTML=D.card.map(c=>{const g=cardCfg(c);return `<div data-c="${esc(c)}"><label>${esc(c)}</label><div class="row"><input type="number" placeholder="締め日" value="${g.close}" data-k="close"><input type="number" placeholder="支払日" value="${g.pay}" data-k="pay"><input type="number" placeholder="締め後の月数" value="${g.lag}" data-k="lag"></div><select data-k="from">${D.acc.map(a=>`<option${a===g.from?' selected':''}>${esc(a)}</option>`).join('')}</select><div class="sub">締め日 / 支払日 / 締め後の月数 / 引落元</div></div>`}).join('');
+ opts($('x-acc'),D.acc);opts($('x-cat'),D.cat);if(!$('x-start').value)$('x-start').value=today().slice(0,7);
+ $('fxlist').innerHTML=(D.fixed||[]).map(f=>`<div class="rec"><div><div>${esc(f.name)}</div><div class="sub">毎月${f.day}日・${esc(f.acc)}・${esc(f.cat)}${f.sub?'／'+esc(f.sub):''}</div></div><div style="text-align:right"><b>${yen(f.amt)}</b><button class="x" data-fxdel="${f.id}">削除</button></div></div>`).join('')||'<p class="sub">まだ登録がありません</p>';
  typeUi();
 }
+function runFixed(){let n=0;const t=today(),cur=ymdP(t);const ci=cur.y*12+cur.m-1;
+ (D.fixed||[]).forEach(f=>{const sp=f.start.split('-').map(Number);for(let i=sp[0]*12+sp[1]-1;i<=ci;i++){const date=toDate(i,f.day),k=f.id+'|'+date.slice(0,7);
+  if(date<=t&&!D.fxDone[k]){D.fxDone[k]=1;D.recs.push({date,type:'支出',acc:f.acc,to:'',cat:f.cat,sub:f.sub||'',amt:f.amt,memo:f.name,fx:f.id});n++}}});
+ if(n)save();return n}
 function cardCfg(c){return Object.assign({close:15,pay:10,lag:1,from:D.acc[0]},(D.cardCfg||{})[c])}
 function ymdP(s){const[y,m,d]=s.split('-').map(Number);return{y,m,d}}
 function dim(y,m){return new Date(y,m,0).getDate()}
@@ -110,6 +125,8 @@ function summary(){
  const m=$('m-sel').value;let inc=0,out=0,cats={};
  D.recs.filter(r=>ym(r.date)===m).forEach(r=>{if(r.type==='収入')inc+=r.amt;if(r.type==='支出'){out+=r.amt;cats[r.cat]=(cats[r.cat]||0)+r.amt}});
  $('s-in').textContent=yen(inc);$('s-out').textContent=yen(out);const n=inc-out;$('s-net').textContent=yen(n);$('s-net').className='big'+(n<0?' neg':'');
+ const fx=D.fixed||[],ft=fx.reduce((a,f)=>a+f.amt,0),fm=D.recs.filter(r=>r.fx&&ym(r.date)===m).reduce((a,r)=>a+r.amt,0),fmx=Math.max(1,...fx.map(f=>f.amt));
+ $('s-fx').innerHTML=fx.length?`<div class="kv"><span>毎月の合計</span><b>${yen(ft)}</b></div><div class="kv"><span>年間にすると</span><b>${yen(ft*12)}</b></div><div class="kv"><span>${m}の固定費</span><b>${yen(fm)}${out?' <span class="sub">(支出の'+Math.round(fm/out*100)+'%)</span>':''}</b></div>`+[...fx].sort((a,b)=>b.amt-a.amt).map(f=>`<div style="margin-top:8px"><div class="kv" style="border:0;padding-bottom:0"><span>${esc(f.name)}</span><span>${yen(f.amt)}</span></div><div class="bar" style="width:${f.amt/fmx*100}%"></div></div>`).join(''):'<p class="sub">固定費は「設定」で登録できます</p>';
  const ce=Object.entries(cats).sort((a,b)=>b[1]-a[1]),mx=ce[0]?ce[0][1]:1;
  $('s-cat').innerHTML=ce.map(([k,v])=>`<div><div class="kv" style="border:0;padding-bottom:0"><span>${esc(k)}</span><span>${yen(v)}</span></div><div class="bar" style="width:${v/mx*100}%"></div></div>`).join('')||'<p class="sub">支出なし</p>';
  const bal={};D.acc.forEach(a=>bal[a]=+D.open[a]||0);
@@ -151,8 +168,13 @@ $('f-file').onchange=async e=>{const f=e.target.files[0];if(!f)return;const t=aw
    n=addRecs(rows.filter(r=>r.length>3).map(r=>({date:normDate(r[ix('日付')]||''),type:(r[ix('収支')]||'').trim(),acc:(r[ix('口座')]||'').trim(),to:(r[ix('振替先')]||'').trim(),cat:(r[ix('親細目')]||'').trim(),sub:(r[ix('細目')]||'').trim(),amt:Math.round(+(r[ix('金額（円）')]||0)),memo:r[ix('メモ')]||''})))}
   save();fill();render();alert(n+' 件を読み込みました')}catch(err){alert('読み込めませんでした: '+err.message)}e.target.value=''};
 $('b-save').onclick=()=>{const L=id=>$(id).value.split('\n').map(s=>s.trim()).filter(Boolean);D.type=L('c-type');D.acc=L('c-acc');D.cat=L('c-cat');D.card=L('c-card');save();fill();alert('保存しました')};
+$('b-fx').onclick=()=>{const amt=Math.round(+$('x-amt').value),name=$('x-name').value.trim(),day=Math.min(31,Math.max(1,Math.round(+$('x-day').value)||1));
+ if(!name||!amt||!$('x-start').value)return alert('名前・金額・開始月を入れてください');
+ D.fixed=D.fixed||[];D.fixed.push({id:String(Date.now()),name,amt,day,acc:$('x-acc').value,cat:$('x-cat').value,sub:$('x-sub').value,start:$('x-start').value});
+ const n=runFixed();save();$('x-name').value='';$('x-amt').value='';$('x-sub').value='';fill();render();alert('登録しました'+(n?'('+n+'件を記録に追加しました)':''))};
+$('fxlist').onclick=e=>{const id=e.target.dataset.fxdel;if(id&&confirm('この固定費を削除しますか?(過去の記録は残ります)')){D.fixed=D.fixed.filter(f=>f.id!==id);save();fill();render()}};
 $('b-cc').onclick=()=>{D.cardCfg=D.cardCfg||{};document.querySelectorAll('#cardcfg [data-c]').forEach(d=>{const o={};d.querySelectorAll('[data-k]').forEach(i=>o[i.dataset.k]=i.dataset.k==='from'?i.value:(+i.value||0));D.cardCfg[d.dataset.c]=o});save();summary();alert('保存しました')};
 $('b-open').onclick=()=>{document.querySelectorAll('#opens input').forEach(i=>D.open[i.dataset.a]=+i.value||0);save();summary();alert('保存しました')};
-load();$('f-date').value=today();fill();render();
+load();$('f-date').value=today();runFixed();fill();render();
 if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();
 </script></body></html>
