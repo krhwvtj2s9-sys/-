@@ -138,7 +138,7 @@ function render(){
 function summary(){
  const m=$('m-sel').value;$('g-msel').value=m;let inc=0,out=0,cats={};
  D.recs.filter(r=>ym(r.date)===m).forEach(r=>{if(r.type==='収入')inc+=r.amt;if(r.type==='支出'){out+=r.amt;cats[r.cat]=(cats[r.cat]||0)+r.amt}});
- $('s-in').textContent=yen(inc);$('s-out').textContent=yen(out);const n=inc-out;$('s-net').textContent=yen(n);$('s-net').className='big'+(n<0?' neg':n>0?' inc':'');
+ $('s-in').textContent=yen(inc);$('s-out').textContent=yen(out);const n=inc-out;$('s-net').textContent=yen(n);$('s-net').className='big'+(n<0?' neg':'');
  const fx=D.fixed||[],ft=fx.reduce((a,f)=>a+f.amt,0),fm=D.recs.filter(r=>r.fx&&ym(r.date)===m).reduce((a,r)=>a+r.amt,0),fmx=Math.max(1,...fx.map(f=>f.amt));
  $('s-fx').innerHTML=fx.length?`<div class="kv"><span>毎月の合計</span><b>${yen(ft)}</b></div><div class="kv"><span>年間にすると</span><b>${yen(ft*12)}</b></div><div class="kv"><span>${m}の固定費</span><b>${yen(fm)}${out?' <span class="sub">(支出の'+Math.round(fm/out*100)+'%)</span>':''}</b></div>`+[...fx].sort((a,b)=>b.amt-a.amt).map(f=>`<div style="margin-top:8px"><div class="kv" style="border:0;padding-bottom:0"><span>${esc(f.name)}</span><span>${yen(f.amt)}</span></div><div class="bar" style="width:${f.amt/fmx*100}%"></div></div>`).join(''):'<p class="sub">固定費は「設定」で登録できます</p>';
  charts(m,inc,out);
