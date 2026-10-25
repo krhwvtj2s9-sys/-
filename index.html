@@ -21,7 +21,7 @@ nav button{margin:0;border-radius:0;background:none;color:var(--sub);border:0;pa
 .kv{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line)}.kv:last-child{border:0}
 .big{font-size:26px;font-weight:700}.neg{color:var(--neg)}.inc{color:var(--inc)}.sub{color:var(--sub);font-size:13px}
 .rec{display:flex;justify-content:space-between;gap:8px;padding:9px 0;border-bottom:1px solid var(--line)}
-.rec .x{width:auto;background:none;color:var(--sub);border:0;margin:0;padding:0 6px}
+.rec .x{white-space:nowrap;width:auto;background:none;color:var(--sub);border:0;margin:0;padding:0 6px}
 .gauge{height:20px;border-radius:10px;background:var(--line);overflow:hidden}.gauge>div{height:100%;background:var(--ac);border-radius:10px}
 .tick{display:flex;justify-content:space-between;font-size:11px;color:var(--sub);margin-top:4px}
 .pill{display:inline-block;background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:2px 10px;font-size:12px;color:var(--sub)}
@@ -33,7 +33,7 @@ nav button{margin:0;border-radius:0;background:none;color:var(--sub);border:0;pa
 <div id="v-add">
  <div class="card"><h2>記録を追加</h2>
   <label>日付</label><input type="date" id="f-date">
-  <div class="row"><div><label>収支</label><select id="f-type"></select></div><div><label>金額(円)</label><input id="f-amt" type="number" inputmode="numeric"></div></div>
+  <div class="row"><div><label>収支</label><select id="f-type"></select><div class="sub" id="f-eff"></div></div><div><label>金額(円)</label><input id="f-amt" type="number" inputmode="numeric"></div></div>
   <div class="row"><div><label>口座</label><select id="f-acc"></select></div><div id="w-to"><label>振替先</label><select id="f-to"></select></div></div>
   <div class="row"><div><label id="l-cat">親細目</label><select id="f-cat"></select></div><div><label>細目</label><input id="f-sub"></div></div>
   <label>メモ</label><input id="f-memo">
@@ -46,7 +46,7 @@ nav button{margin:0;border-radius:0;background:none;color:var(--sub);border:0;pa
   <div class="kv"><span>収支</span><b id="s-net" class="big"></b></div></div>
   <div class="card"><h2>カード引落予定</h2><div id="s-bill"></div></div>
  <div class="card"><h2>毎月の固定費</h2><div id="s-fx"></div></div>
- <div class="card"><h2>口座残高(期首残高+記録+カード引落)</h2><div id="s-acc"></div></div>
+ <div class="card"><h2>口座残高</h2><div id="s-acc"></div></div>
 </div>
 <div id="v-graph" hidden>
  <div class="card"><label>表示月</label><select id="g-msel"></select></div>
@@ -70,8 +70,11 @@ nav button{margin:0;border-radius:0;background:none;color:var(--sub);border:0;pa
   <p class="sub" id="cnt"></p>
   <label>書き出しのお知らせ(何日ごと・0でオフ)</label><div class="row"><input type="number" id="r-days" min="0" inputmode="numeric"><button class="sec" id="b-rd" style="margin-top:0">保存</button></div>
   <p class="sub" id="r-last"></p></div>
+ <div class="card"><h2>収支の種類</h2><div id="typecfg"></div>
+  <label>新しい種類</label><input id="t-name" placeholder="例: 貯金・返金・立替">
+  <select id="t-eff" style="margin-top:8px"></select><button id="b-type">種類を追加</button>
+  <p class="sub">種類ごとに、「口座の残高にどう働くか」を決めます。収入は残高が増え、支出は減ります。振替は、口座から別の口座へ移します。使われている種類は、削除できません。</p></div>
  <div class="card"><h2>候補リスト(1行に1つ)</h2>
-  <label>収支</label><textarea id="c-type" rows="4"></textarea>
   <label>口座</label><textarea id="c-acc" rows="5"></textarea>
   <label>親細目</label><textarea id="c-cat" rows="8"></textarea>
   <label>カード口座(クレジット)</label><textarea id="c-card" rows="2"></textarea>
@@ -85,8 +88,8 @@ nav button{margin:0;border-radius:0;background:none;color:var(--sub);border:0;pa
   <p class="sub">アプリを開いたときに、その月の日付が来ている分を支出として自動で記録します。記録を消しても、同じ月の分は作り直しません。固定費を削除すると、これから先の分が止まります。過去の記録は残ります。</p></div>
  <div class="card"><h2>カードの設定</h2><div id="cardcfg"></div><button id="b-cc">カード設定を保存</button>
   <p class="sub">締め日の翌日からの利用分は、次の締め日の請求になります。締め後の月数が1なら、締め日の翌月が支払月です。支払日を過ぎると、引落元の口座から自動で引き落とします。</p></div>
- <div class="card"><h2>口座の期首残高(円)</h2><div id="opens"></div><button id="b-open">保存</button>
-  <p class="sub">期首残高は、記録を付け始める前の残高です。カードは0のままにします。</p></div>
+ <div class="card"><h2>口座の残高を合わせる</h2><div id="opens"></div><button id="b-open">保存</button>
+  <p class="sub">実際の残高と、その残高を確かめた日を入れます。その日より後の記録だけが、残高に反映されます。同じ日の記録は、すでに残高に含まれているものとして、数えません。カードは、未払いの額をマイナスで入れます(例: −64,900)。空にすると、その口座は「0円から、すべての記録を足す」計算になります。</p></div>
 </div>
 </main>
 <nav><button data-v="add" class="on">記録</button><button data-v="sum">集計</button><button data-v="graph">グラフ</button><button data-v="save">貯金</button><button data-v="set">設定</button></nav>
@@ -109,8 +112,10 @@ function today(){const d=new Date();return new Date(d-d.getTimezoneOffset()*6e4)
 function fill(){
  opts($('f-type'),D.type);opts($('f-acc'),D.acc);opts($('f-to'),D.acc,true);opts($('f-cat'),D.cat);
  const keep=$('m-sel').value;opts($('m-sel'),months());if(keep)$('m-sel').value=keep;opts($('g-msel'),months());$('g-msel').value=$('m-sel').value;
- $('c-type').value=D.type.join('\n');$('c-acc').value=D.acc.join('\n');$('c-cat').value=D.cat.join('\n');$('c-card').value=D.card.join('\n');
- $('opens').innerHTML=D.acc.map((a,i)=>`<label>${esc(a)}</label><input type="number" data-a="${esc(a)}" value="${D.open[a]||0}">`).join('');
+ $('typecfg').innerHTML=D.type.map(t=>`<div class="rec" style="align-items:center"><div style="white-space:nowrap"><b>${esc(t)}</b></div><div style="display:flex;gap:6px;align-items:center"><select data-te="${esc(t)}" style="width:auto;padding:8px">${Object.entries(EFFS).map(([k,v])=>`<option value="${k}"${eff(t)===k?' selected':''}>${v}</option>`).join('')}</select><button class="x" data-trdel="${esc(t)}">削除</button></div></div>`).join('');
+ $('t-eff').innerHTML=Object.entries(EFFL).map(([k,v])=>`<option value="${k}">${v}</option>`).join('');
+$('c-acc').value=D.acc.join('\n');$('c-cat').value=D.cat.join('\n');$('c-card').value=D.card.join('\n');
+ $('opens').innerHTML=D.acc.map(a=>{const an=(D.anchor||{})[a]||{};return `<label>${esc(a)}</label><div class="row"><input type="number" inputmode="numeric" placeholder="実際の残高(円)" data-a="${esc(a)}" data-k="amt" value="${an.amt??''}"><input type="date" data-a="${esc(a)}" data-k="date" value="${an.date||today()}"></div>`}).join('');
  const lk=$('l-sel').value;$('l-sel').innerHTML='<option value="">直近30件</option>'+months().map(m=>`<option>${m}</option>`).join('');$('l-sel').value=lk;
  $('cardcfg').innerHTML=D.card.map(c=>{const g=cardCfg(c);return `<div data-c="${esc(c)}"><label>${esc(c)}</label><div class="row"><input type="number" placeholder="締め日" value="${g.close}" data-k="close"><input type="number" placeholder="支払日" value="${g.pay}" data-k="pay"><input type="number" placeholder="締め後の月数" value="${g.lag}" data-k="lag"></div><select data-k="from">${D.acc.map(a=>`<option${a===g.from?' selected':''}>${esc(a)}</option>`).join('')}</select><div class="sub">締め日 / 支払日 / 締め後の月数 / 引落元</div></div>`}).join('');
  opts($('x-acc'),D.acc);opts($('x-cat'),D.cat);if(!$('x-start').value)$('x-start').value=today().slice(0,7);
@@ -119,13 +124,20 @@ function fill(){
 }
 function runFixed(){let n=0;const t=today(),cur=ymdP(t);const ci=cur.y*12+cur.m-1;
  (D.fixed||[]).forEach(f=>{const sp=f.start.split('-').map(Number);for(let i=sp[0]*12+sp[1]-1;i<=ci;i++){const date=toDate(i,f.day),k=f.id+'|'+date.slice(0,7);
-  if(date<=t&&!D.fxDone[k]){D.fxDone[k]=1;D.recs.push({date,type:'支出',acc:f.acc,to:'',cat:f.cat,sub:f.sub||'',amt:f.amt,memo:f.name,fx:f.id});n++}}});
+  if(date<=t&&!D.fxDone[k]){D.fxDone[k]=1;D.recs.push({date,type:D.type.find(t=>eff(t)==='out')||'支出',acc:f.acc,to:'',cat:f.cat,sub:f.sub||'',amt:f.amt,memo:f.name,fx:f.id});n++}}});
  if(n)save();return n}
-function calcBal(until,cy){const bal={};D.acc.forEach(a=>bal[a]=+D.open[a]||0);cy=cy||cycles();
- D.recs.forEach(r=>{if(until&&r.date>until)return;const A=r.acc;if(!(A in bal))bal[A]=0;
-  if(r.type==='支出')bal[A]-=r.amt;else if(r.type==='収入')bal[A]+=r.amt;else if(r.type==='調整')bal[A]-=r.amt;
-  else if(r.type==='振替'){bal[A]-=r.amt;if(r.to){bal[r.to]=(bal[r.to]||0)+r.amt}}});
- cy.filter(x=>x.done&&x.rem>0&&(!until||x.pay<=until)).forEach(x=>{bal[x.from]=(bal[x.from]||0)-x.rem;bal[x.card]=(bal[x.card]||0)+x.rem});
+const EFFL={in:'収入(口座が増える)',out:'支出(口座が減る)',move:'振替(口座から口座へ移す)',adj:'カード請求の調整(請求が増える)'};
+const EFFS={in:'収入(増える)',out:'支出(減る)',move:'振替(移す)',adj:'請求の調整'};
+function eff(t){return((D.typeEff||{})[t])||({'支出':'out','収入':'in','振替':'move','調整':'adj'})[t]||'out'}
+function calcBal(until,cy){cy=cy||cycles();const AN=D.anchor||{},bal={},ev=[];
+ D.acc.forEach(a=>bal[a]=AN[a]?+AN[a].amt||0:+D.open[a]||0);
+ D.recs.forEach(r=>{const A=r.acc;
+  const e=eff(r.type);if(e==='out')ev.push([r.date,A,-r.amt]);else if(e==='in')ev.push([r.date,A,r.amt]);else if(e==='adj')ev.push([r.date,A,-r.amt]);
+  else if(e==='move'){ev.push([r.date,A,-r.amt]);if(r.to)ev.push([r.date,r.to,r.amt])}});
+ cy.filter(x=>x.done&&x.rem>0).forEach(x=>{ev.push([x.pay,x.from,-x.rem]);ev.push([x.pay,x.card,x.rem])});
+ ev.forEach(([d,a,v])=>{if(!(a in bal))bal[a]=+D.open[a]||0;const an=AN[a];
+  if(an&&an.date){if(!until||until>=an.date){if(d>an.date&&(!until||d<=until))bal[a]+=v}else if(d>until&&d<=an.date)bal[a]-=v}
+  else if(!until||d<=until)bal[a]+=v});
  return bal}
 function renderSave(){const g=D.goal,el=$('sv-body');
  opts($('g-acc'),D.acc);if(!$('g-due').value)$('g-due').value=toDate(new Date().getFullYear()*12+new Date().getMonth()+6,1).slice(0,7);
@@ -168,22 +180,22 @@ function dd(a,b){const f=x=>{const p=ymdP(x);return Date.UTC(p.y,p.m-1,p.d)/864e
 function cycles(){const out=[],t=today();
  D.card.forEach(c=>{const g=cardCfg(c),map={};
   const add=(date,v)=>{const p=ymdP(date),cl=Math.min(g.close,dim(p.y,p.m)),ci=p.y*12+p.m-1+(p.d>cl?1:0);const pi=ci+g.lag;map[pi]=(map[pi]||0)+v};
-  D.recs.forEach(r=>{if(r.acc!==c)return;if(r.type==='支出'||r.type==='調整'||r.type==='振替')add(r.date,r.amt);else if(r.type==='収入')add(r.date,-r.amt)});
+  D.recs.forEach(r=>{if(r.acc!==c)return;{const e=eff(r.type);if(e==='in')add(r.date,-r.amt);else add(r.date,r.amt)}});
   Object.entries(map).forEach(([pi,amt])=>{const pay=toDate(+pi,g.pay);
-   const manual=D.recs.filter(r=>r.type==='振替'&&r.to===c&&r.acc===g.from&&Math.abs(dd(r.date,pay))<=5).reduce((s,r)=>s+r.amt,0);
+   const manual=D.recs.filter(r=>eff(r.type)==='move'&&r.to===c&&r.acc===g.from&&Math.abs(dd(r.date,pay))<=5).reduce((s,r)=>s+r.amt,0);
    out.push({card:c,pay,amt,manual,rem:Math.max(0,amt-manual),done:pay<t,from:g.from})})});
  return out.sort((a,b)=>a.pay.localeCompare(b.pay))}
-function typeUi(){const t=$('f-type').value;$('w-to').style.display=t==='振替'?'':'none';$('l-cat').textContent=t==='振替'||t==='調整'?'親細目(任意)':'親細目'}
+function typeUi(){const t=$('f-type').value,e=eff(t);$('w-to').style.display=e==='move'?'':'none';$('l-cat').textContent=e==='move'||e==='adj'?'親細目(任意)':'親細目';$('f-eff').textContent=EFFL[e]}
 function render(){
  const lm=$('l-sel').value;let rs=D.recs.map((r,i)=>({...r,i})).filter(r=>!lm||ym(r.date)===lm).sort((a,b)=>b.date.localeCompare(a.date)||b.i-a.i);if(!lm)rs=rs.slice(0,30);
  $('list').innerHTML=rs.map(r=>`<div class="rec"><div><div>${esc(r.date.slice(5))} ${esc(r.cat||'')}${r.sub?'／'+esc(r.sub):''}</div><div class="sub">${esc(r.type)}・${esc(r.acc)}${r.to?'→'+esc(r.to):''}${r.memo?'・'+esc(r.memo):''}</div></div>
-  <div style="text-align:right"><b class="${r.type==='支出'?'neg':r.type==='収入'?'inc':''}">${yen(r.amt)}</b><button class="x" data-edit="${r.i}">編集</button><button class="x" data-del="${r.i}">削除</button></div></div>`).join('')||'<p class="sub">まだ記録がありません</p>';
+  <div style="text-align:right"><b class="${eff(r.type)==='out'?'neg':eff(r.type)==='in'?'inc':''}">${yen(r.amt)}</b><button class="x" data-edit="${r.i}">編集</button><button class="x" data-del="${r.i}">削除</button></div></div>`).join('')||'<p class="sub">まだ記録がありません</p>';
  $('cnt').textContent=`記録 ${D.recs.length} 件`;remindUi();renderSave();
  summary();
 }
 function summary(){
  const m=$('m-sel').value;$('g-msel').value=m;let inc=0,out=0,cats={};
- D.recs.filter(r=>ym(r.date)===m).forEach(r=>{if(r.type==='収入')inc+=r.amt;if(r.type==='支出'){out+=r.amt;cats[r.cat]=(cats[r.cat]||0)+r.amt}});
+ D.recs.filter(r=>ym(r.date)===m).forEach(r=>{if(eff(r.type)==='in')inc+=r.amt;if(eff(r.type)==='out'){out+=r.amt;cats[r.cat]=(cats[r.cat]||0)+r.amt}});
  $('s-in').textContent=yen(inc);$('s-out').textContent=yen(out);const n=inc-out;$('s-net').textContent=yen(n);$('s-net').className='big'+(n<0?' neg':'');
  const fx=D.fixed||[],ft=fx.reduce((a,f)=>a+f.amt,0),fm=D.recs.filter(r=>r.fx&&ym(r.date)===m).reduce((a,r)=>a+r.amt,0),fmx=Math.max(1,...fx.map(f=>f.amt));
  $('s-fx').innerHTML=fx.length?`<div class="kv"><span>毎月の合計</span><b>${yen(ft)}</b></div><div class="kv"><span>年間にすると</span><b>${yen(ft*12)}</b></div><div class="kv"><span>${m}の固定費</span><b>${yen(fm)}${out?' <span class="sub">(支出の'+Math.round(fm/out*100)+'%)</span>':''}</b></div>`+[...fx].sort((a,b)=>b.amt-a.amt).map(f=>`<div style="margin-top:8px"><div class="kv" style="border:0;padding-bottom:0"><span>${esc(f.name)}</span><span>${yen(f.amt)}</span></div><div class="bar" style="width:${f.amt/fmx*100}%"></div></div>`).join(''):'<p class="sub">固定費は「設定」で登録できます</p>';
@@ -201,7 +213,7 @@ function charts(m,inc,out){
  $('g-ratio').innerHTML=inc||out?(inc?`<div class="kv" style="border:0"><span>収入に対する支出</span><b class="${out>inc?'neg':''}">${pct}%</b></div><div style="height:18px;border-radius:9px;background:var(--line);overflow:hidden"><div style="height:100%;width:${w}%;background:${out>inc?'var(--neg)':'var(--ac)'}"></div></div><div class="sub" style="margin-top:6px">${out>inc?'収入より '+yen(out-inc)+' 多く使っています':'収入のうち '+yen(inc-out)+' が残っています'}</div>`:'<p class="sub">この月の収入の記録がありません。支出は '+yen(out)+' です。</p>'):'<p class="sub">この月の記録がありません</p>';
  // ドーナツ
  const mode=$('g-mode').value,map={};
- D.recs.filter(r=>r.type==='支出'&&ym(r.date)===m).forEach(r=>{const k=mode==='sub'?(r.sub||'(細目なし)'):(r.cat||'(未分類)');map[k]=(map[k]||0)+r.amt});
+ D.recs.filter(r=>eff(r.type)==='out'&&ym(r.date)===m).forEach(r=>{const k=mode==='sub'?(r.sub||'(細目なし)'):(r.cat||'(未分類)');map[k]=(map[k]||0)+r.amt});
  let ent=Object.entries(map).sort((a,b)=>b[1]-a[1]);
  if(ent.length>8){const rest=ent.slice(7).reduce((a,e)=>a+e[1],0);ent=ent.slice(0,7).concat([['その他いろいろ',rest]])}
  const tot=ent.reduce((a,e)=>a+e[1],0);
@@ -213,7 +225,7 @@ function charts(m,inc,out){
    ent.map((e,i)=>`<div class="kv"><span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${PAL[i]};margin-right:8px"></span>${esc(e[0])}</span><span>${yen(e[1])} <span class="sub">${Math.round(e[1]/tot*100)}%</span></span></div>`).join('')}
  // 棒グラフ(直近6か月)
  const p=ymdP(m+'-01'),base=p.y*12+p.m-1,ms=[];for(let k=5;k>=0;k--){const i=base-k;ms.push(Math.floor(i/12)+'-'+String(i%12+1).padStart(2,'0'))}
- const data=ms.map(x=>{let a=0,b=0;D.recs.forEach(r=>{if(ym(r.date)===x){if(r.type==='収入')a+=r.amt;if(r.type==='支出')b+=r.amt}});return[x,a,b]});
+ const data=ms.map(x=>{let a=0,b=0;D.recs.forEach(r=>{if(ym(r.date)===x){if(eff(r.type)==='in')a+=r.amt;if(eff(r.type)==='out')b+=r.amt}});return[x,a,b]});
  const mx=Math.max(1,...data.flatMap(d=>[d[1],d[2]])),H=130,W=340,bw=18,gap=(W-6*bw*2)/6;
  let bars='';data.forEach((d,i)=>{const x0=gap/2+i*(bw*2+gap);
   [[d[1],'#6aa6f5',0],[d[2],'#ee5a5f',1]].forEach(([v,c,k])=>{const h=v/mx*H,x=x0+k*bw;bars+=`<rect x="${x}" y="${150-h}" width="${bw-2}" height="${Math.max(h,v?1:0)}" rx="3" fill="${c}"/>`+(v?`<text x="${x+bw/2-1}" y="${146-h}" text-anchor="middle" font-size="8" fill="var(--sub)">${short(v)}</text>`:'')});
@@ -233,7 +245,7 @@ let editing=null;
 function setEdit(i){editing=i;$('b-add').textContent=i===null?'追加':'更新';$('b-cancel').hidden=i===null}
 $('b-cancel').onclick=()=>{setEdit(null);$('f-amt').value='';$('f-sub').value='';$('f-memo').value=''};
 $('b-add').onclick=()=>{const amt=Math.round(+$('f-amt').value);if(!$('f-date').value||!amt)return alert('日付と金額を入れてください');
- const t=$('f-type').value;const nr={date:$('f-date').value,type:t,acc:$('f-acc').value,to:t==='振替'?$('f-to').value:'',cat:$('f-cat').value,sub:$('f-sub').value,amt,memo:$('f-memo').value};if(editing!==null)D.recs[editing]=nr;else D.recs.push(nr);setEdit(null);
+ const t=$('f-type').value;const nr={date:$('f-date').value,type:t,acc:$('f-acc').value,to:eff(t)==='move'?$('f-to').value:'',cat:$('f-cat').value,sub:$('f-sub').value,amt,memo:$('f-memo').value};if(editing!==null)D.recs[editing]=nr;else D.recs.push(nr);setEdit(null);
  save();$('f-amt').value='';$('f-sub').value='';$('f-memo').value='';fill();render()};
 $('f-type').onchange=typeUi;$('m-sel').onchange=summary;$('g-msel').onchange=()=>{$('m-sel').value=$('g-msel').value;summary()};$('g-mode').onchange=summary;$('l-sel').onchange=render;
 $('list').onclick=e=>{const ed=e.target.dataset.edit;if(ed!==undefined){const r=D.recs[+ed];$('f-date').value=r.date;$('f-type').value=r.type;typeUi();$('f-acc').value=r.acc;$('f-to').value=r.to||'';$('f-cat').value=r.cat;$('f-sub').value=r.sub||'';$('f-amt').value=r.amt;$('f-memo').value=r.memo||'';setEdit(+ed);scrollTo(0,0);return}
@@ -254,14 +266,20 @@ $('f-file').onchange=async e=>{const f=e.target.files[0];if(!f)return;const t=aw
   else{const rows=parseCSV(t);const h=rows.shift().map(s=>s.trim());const ix=k=>h.indexOf(k);
    n=addRecs(rows.filter(r=>r.length>3).map(r=>({date:normDate(r[ix('日付')]||''),type:(r[ix('収支')]||'').trim(),acc:(r[ix('口座')]||'').trim(),to:(r[ix('振替先')]||'').trim(),cat:(r[ix('親細目')]||'').trim(),sub:(r[ix('細目')]||'').trim(),amt:Math.round(+(r[ix('金額（円）')]||0)),memo:r[ix('メモ')]||''})))}
   save();fill();render();alert(n+' 件を読み込みました')}catch(err){alert('読み込めませんでした: '+err.message)}e.target.value=''};
-$('b-save').onclick=()=>{const L=id=>$(id).value.split('\n').map(s=>s.trim()).filter(Boolean);D.type=L('c-type');D.acc=L('c-acc');D.cat=L('c-cat');D.card=L('c-card');save();fill();alert('保存しました')};
+$('b-type').onclick=()=>{const n=$('t-name').value.trim();if(!n)return alert('名前を入れてください');if(D.type.includes(n))return alert('同じ名前があります');
+ D.type.push(n);D.typeEff=D.typeEff||{};D.typeEff[n]=$('t-eff').value;save();$('t-name').value='';fill();render()};
+$('typecfg').onchange=e=>{const t=e.target.dataset.te;if(t===undefined)return;D.typeEff=D.typeEff||{};D.typeEff[t]=e.target.value;save();fill();render()};
+$('typecfg').onclick=e=>{const t=e.target.dataset.trdel;if(t===undefined)return;const n=D.recs.filter(r=>r.type===t).length;
+ if(n)return alert(`「${t}」は ${n} 件の記録で使われているので、削除できません`);if(D.type.length<2)return alert('最後の1つは削除できません');
+ if(confirm(`「${t}」を削除しますか?`)){D.type=D.type.filter(x=>x!==t);save();fill()}};
+$('b-save').onclick=()=>{const L=id=>$(id).value.split('\n').map(s=>s.trim()).filter(Boolean);D.acc=L('c-acc');D.cat=L('c-cat');D.card=L('c-card');save();fill();alert('保存しました')};
 $('b-fx').onclick=()=>{const amt=Math.round(+$('x-amt').value),name=$('x-name').value.trim(),day=Math.min(31,Math.max(1,Math.round(+$('x-day').value)||1));
  if(!name||!amt||!$('x-start').value)return alert('名前・金額・開始月を入れてください');
  D.fixed=D.fixed||[];D.fixed.push({id:String(Date.now()),name,amt,day,acc:$('x-acc').value,cat:$('x-cat').value,sub:$('x-sub').value,start:$('x-start').value});
  const n=runFixed();save();$('x-name').value='';$('x-amt').value='';$('x-sub').value='';fill();render();alert('登録しました'+(n?'('+n+'件を記録に追加しました)':''))};
 $('fxlist').onclick=e=>{const id=e.target.dataset.fxdel;if(id&&confirm('この固定費を削除しますか?(過去の記録は残ります)')){D.fixed=D.fixed.filter(f=>f.id!==id);save();fill();render()}};
 $('b-cc').onclick=()=>{D.cardCfg=D.cardCfg||{};document.querySelectorAll('#cardcfg [data-c]').forEach(d=>{const o={};d.querySelectorAll('[data-k]').forEach(i=>o[i.dataset.k]=i.dataset.k==='from'?i.value:(+i.value||0));D.cardCfg[d.dataset.c]=o});save();summary();alert('保存しました')};
-$('b-open').onclick=()=>{document.querySelectorAll('#opens input').forEach(i=>D.open[i.dataset.a]=+i.value||0);save();summary();alert('保存しました')};
+$('b-open').onclick=()=>{D.anchor={};document.querySelectorAll('#opens input[data-k=amt]').forEach(i=>{if(i.value==='')return;const d=document.querySelector(`#opens input[data-k=date][data-a="${i.dataset.a}"]`).value||today();D.anchor[i.dataset.a]={amt:Math.round(+i.value)||0,date:d}});save();fill();summary();renderSave();alert('保存しました')};
 load();$('f-date').value=today();runFixed();fill();render();
 if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();
 </script></body></html>
