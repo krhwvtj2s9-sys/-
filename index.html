@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="家計簿">
+<title>家計簿</title>
+<style>
+:root{--bg:#f6f5f2;--card:#fff;--tx:#222;--sub:#777;--ac:#2f6f5e;--line:#e4e2dc;--neg:#b3412f}
+@media(prefers-color-scheme:dark){:root{--bg:#161716;--card:#222423;--tx:#eee;--sub:#999;--ac:#6fc2a8;--line:#363837;--neg:#e88a78}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 -apple-system,"Hiragino Sans",sans-serif;padding:0 16px 90px}
+main{max-width:640px;margin:0 auto}h1{font-size:20px;margin:18px 0 8px}h2{font-size:15px;margin:0 0 8px;color:var(--sub)}
+.card{background:var(--card);border-radius:14px;padding:14px;margin:12px 0;border:1px solid var(--line)}
+label{display:block;font-size:12px;color:var(--sub);margin-top:8px}
+input,select,button{font:inherit;width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--tx)}
+button{background:var(--ac);color:#fff;border:0;margin-top:12px;font-weight:600}button.sec{background:var(--bg);color:var(--tx);border:1px solid var(--line);margin-top:6px}
+.row{display:flex;gap:8px}.row>*{flex:1}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+nav button{margin:0;border-radius:0;background:none;color:var(--sub);border:0;padding:14px 0}nav button.on{color:var(--ac)}
+.kv{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line)}.kv:last-child{border:0}
+.big{font-size:26px;font-weight:700}.neg{color:var(--neg)}.sub{color:var(--sub);font-size:13px}
+.rec{display:flex;justify-content:space-between;gap:8px;padding:9px 0;border-bottom:1px solid var(--line)}
+.rec .x{width:auto;background:none;color:var(--sub);border:0;margin:0;padding:0 6px}
+.bar{height:6px;background:var(--ac);border-radius:3px;margin-top:3px}
+</style></head><body><main>
+<h1>家計簿 <span class="sub">端末内のみ保存</span></h1>
+<div id="v-add">
+ <div class="card"><h2>記録を追加</h2>
+  <label>日付</label><input type="date" id="f-date">
+  <div class="row"><div><label>収支</label><select id="f-type"></select></div><div><label>金額(円)</label><input id="f-amt" type="number" inputmode="numeric"></div></div>
+  <div class="row"><div><label>口座</label><select id="f-acc"></select></div><div id="w-to"><label>振替先</label><select id="f-to"></select></div></div>
+  <div class="row"><div><label id="l-cat">親細目</label><select id="f-cat"></select></div><div><label>細目</label><input id="f-sub"></div></div>
+  <label>メモ</label><input id="f-memo">
+  <button id="b-add">追加</button></div>
+ <div class="card"><h2 id="t-list">最近の記録</h2><div id="list"></div></div>
+</div>
+<div id="v-sum" hidden>
+ <div class="card"><label>表示月</label><select id="m-sel"></select>
+  <div class="kv"><span>収入</span><b id="s-in"></b></div><div class="kv"><span>支出</span><b id="s-out"></b></div>
+  <div class="kv"><span>収支</span><b id="s-net" class="big"></b></div></div>
+ <div class="card"><h2>支出の内訳</h2><div id="s-cat"></div></div>
+ <div class="card"><h2>口座残高(期首残高+記録)</h2><div id="s-acc"></div></div>
+</div>
+<div id="v-set" hidden>
+ <div class="card"><h2>データ</h2>
+  <button id="b-csv">CSVで書き出し</button><button class="sec" id="b-json">バックアップ(JSON)を書き出し</button>
+  <button class="sec" id="b-imp">CSV/JSONを読み込み(追加)</button><input type="file" id="f-file" accept=".csv,.json,text/csv,application/json" hidden>
+  <p class="sub" id="cnt"></p></div>
+ <div class="card"><h2>候補リスト(1行に1つ)</h2>
+  <label>収支</label><textarea id="c-type" rows="4"></textarea>
+  <label>口座</label><textarea id="c-acc" rows="5"></textarea>
+  <label>親細目</label><textarea id="c-cat" rows="8"></textarea>
+  <label>カード口座(クレジット)</label><textarea id="c-card" rows="2"></textarea>
+  <button id="b-save">候補を保存</button></div>
+ <div class="card"><h2>口座の期首残高(円)</h2><div id="opens"></div><button id="b-open">保存</button>
+  <p class="sub">期首残高は、記録を付け始める前の残高です。カードは0のままにします。</p></div>
+</div>
+</main>
+<nav><button data-v="add" class="on">記録</button><button data-v="sum">集計</button><button data-v="set">設定</button></nav>
+<style>textarea{width:100%;font:inherit;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--tx)}</style>
+<script>
+const $=id=>document.getElementById(id);
+const KEY='kakeibo.v1';
+const DEF={recs:[],type:['支出','収入','振替','調整'],acc:['現金','銀行口座','クレジットカード','PayPay','Suica'],
+ cat:['食費','日用品','交通費','趣味・娯楽','交際費','衣類','通信費','家賃・光熱費','学費','給料','バイト代','仕送り','お小遣い','その他'],
+ card:['クレジットカード'],open:{}};
+let D;
+function load(){try{D=Object.assign({},DEF,JSON.parse(localStorage.getItem(KEY)||'{}'))}catch(e){D=JSON.parse(JSON.stringify(DEF))}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(D))}catch(e){alert('保存できませんでした。書き出しでバックアップしてください。')}}
+const yen=n=>(n<0?'−':'')+Math.abs(Math.round(n)).toLocaleString()+'円';
+const ym=d=>d.slice(0,7);
+function opts(el,arr,blank){el.innerHTML=(blank?'<option value=""></option>':'')+arr.map(a=>`<option>${esc(a)}</option>`).join('')}
+function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function months(){const s=new Set(D.recs.map(r=>ym(r.date)));s.add(ym(today()));return [...s].sort().reverse()}
+function today(){const d=new Date();return new Date(d-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)}
+function fill(){
+ opts($('f-type'),D.type);opts($('f-acc'),D.acc);opts($('f-to'),D.acc,true);opts($('f-cat'),D.cat);
+ const keep=$('m-sel').value;opts($('m-sel'),months());if(keep)$('m-sel').value=keep;
+ $('c-type').value=D.type.join('\n');$('c-acc').value=D.acc.join('\n');$('c-cat').value=D.cat.join('\n');$('c-card').value=D.card.join('\n');
+ $('opens').innerHTML=D.acc.map((a,i)=>`<label>${esc(a)}</label><input type="number" data-a="${esc(a)}" value="${D.open[a]||0}">`).join('');
+ typeUi();
+}
+function typeUi(){const t=$('f-type').value;$('w-to').style.display=t==='振替'?'':'none';$('l-cat').textContent=t==='振替'||t==='調整'?'親細目(任意)':'親細目'}
+function render(){
+ const rs=D.recs.map((r,i)=>({...r,i})).sort((a,b)=>b.date.localeCompare(a.date)||b.i-a.i).slice(0,30);
+ $('list').innerHTML=rs.map(r=>`<div class="rec"><div><div>${esc(r.date.slice(5))} ${esc(r.cat||'')}${r.sub?'／'+esc(r.sub):''}</div><div class="sub">${esc(r.type)}・${esc(r.acc)}${r.to?'→'+esc(r.to):''}${r.memo?'・'+esc(r.memo):''}</div></div>
+  <div style="text-align:right"><b class="${r.type==='支出'?'neg':''}">${yen(r.amt)}</b><button class="x" data-del="${r.i}">削除</button></div></div>`).join('')||'<p class="sub">まだ記録がありません</p>';
+ $('cnt').textContent=`記録 ${D.recs.length} 件`;
+ summary();
+}
+function summary(){
+ const m=$('m-sel').value;let inc=0,out=0,cats={};
+ D.recs.filter(r=>ym(r.date)===m).forEach(r=>{if(r.type==='収入')inc+=r.amt;if(r.type==='支出'){out+=r.amt;cats[r.cat]=(cats[r.cat]||0)+r.amt}});
+ $('s-in').textContent=yen(inc);$('s-out').textContent=yen(out);const n=inc-out;$('s-net').textContent=yen(n);$('s-net').className='big'+(n<0?' neg':'');
+ const ce=Object.entries(cats).sort((a,b)=>b[1]-a[1]),mx=ce[0]?ce[0][1]:1;
+ $('s-cat').innerHTML=ce.map(([k,v])=>`<div><div class="kv" style="border:0;padding-bottom:0"><span>${esc(k)}</span><span>${yen(v)}</span></div><div class="bar" style="width:${v/mx*100}%"></div></div>`).join('')||'<p class="sub">支出なし</p>';
+ const bal={};D.acc.forEach(a=>bal[a]=+D.open[a]||0);
+ D.recs.forEach(r=>{const A=r.acc;if(!(A in bal))bal[A]=0;
+  if(r.type==='支出')bal[A]-=r.amt;else if(r.type==='収入'||r.type==='調整')bal[A]+=r.amt;
+  else if(r.type==='振替'){bal[A]-=r.amt;if(r.to){bal[r.to]=(bal[r.to]||0)+r.amt}}});
+ $('s-acc').innerHTML=Object.entries(bal).map(([a,v])=>`<div class="kv"><span>${esc(a)}${D.card.includes(a)?'<span class="sub">(未払い)</span>':''}</span><b class="${v<0?'neg':''}">${yen(v)}</b></div>`).join('');
+}
+const COLS=['日付','収支','口座','振替先','親細目','細目','金額（円）','メモ'];
+function csvEsc(v){v=String(v??'');return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}
+function dl(name,text,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click()}
+function parseCSV(t){const rows=[];let r=[],c='',q=false;t=t.replace(/^﻿/,'');
+ for(let i=0;i<t.length;i++){const ch=t[i];if(q){if(ch=='"'){if(t[i+1]=='"'){c+='"';i++}else q=false}else c+=ch}
+  else if(ch=='"')q=true;else if(ch==','){r.push(c);c=''}else if(ch=='\n'){r.push(c);rows.push(r);r=[];c=''}else if(ch!='\r')c+=ch}
+ if(c||r.length){r.push(c);rows.push(r)}return rows}
+function addRecs(list){let n=0;list.forEach(r=>{if(r.date&&r.type&&r.acc&&r.amt){D.recs.push(r);n++;
+  [['type','type'],['acc','acc'],['to','acc'],['cat','cat']].forEach(([k,l])=>{if(r[k]&&!D[l].includes(r[k]))D[l].push(r[k])})}});return n}
+function normDate(s){s=s.trim().replace(/\//g,'-');const m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);return m?`${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`:''}
+$('b-add').onclick=()=>{const amt=Math.round(+$('f-amt').value);if(!$('f-date').value||!amt)return alert('日付と金額を入れてください');
+ const t=$('f-type').value;D.recs.push({date:$('f-date').value,type:t,acc:$('f-acc').value,to:t==='振替'?$('f-to').value:'',cat:$('f-cat').value,sub:$('f-sub').value,amt,memo:$('f-memo').value});
+ save();$('f-amt').value='';$('f-sub').value='';$('f-memo').value='';fill();render()};
+$('f-type').onchange=typeUi;$('m-sel').onchange=summary;
+$('list').onclick=e=>{const i=e.target.dataset.del;if(i!==undefined&&confirm('この記録を削除しますか?')){D.recs.splice(+i,1);save();fill();render()}};
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
+ ['add','sum','set'].forEach(v=>$('v-'+v).hidden=v!==b.dataset.v);if(b.dataset.v==='sum')summary()});
+$('b-csv').onclick=()=>dl(`kakeibo_${today()}.csv`,'﻿'+[COLS,...D.recs.map(r=>[r.date,r.type,r.acc,r.to,r.cat,r.sub,r.amt,r.memo])].map(r=>r.map(csvEsc).join(',')).join('\r\n'),'text/csv');
+$('b-json').onclick=()=>dl(`kakeibo_backup_${today()}.json`,JSON.stringify(D),'application/json');
+$('b-imp').onclick=()=>$('f-file').click();
+$('f-file').onchange=async e=>{const f=e.target.files[0];if(!f)return;const t=await f.text();let n=0;
+ try{if(f.name.endsWith('.json')){const j=JSON.parse(t);if(confirm('JSONを読み込みます。現在のデータは置き換えられます。よろしいですか?')){D=Object.assign({},DEF,j);n=D.recs.length}}
+  else{const rows=parseCSV(t);const h=rows.shift().map(s=>s.trim());const ix=k=>h.indexOf(k);
+   n=addRecs(rows.filter(r=>r.length>3).map(r=>({date:normDate(r[ix('日付')]||''),type:(r[ix('収支')]||'').trim(),acc:(r[ix('口座')]||'').trim(),to:(r[ix('振替先')]||'').trim(),cat:(r[ix('親細目')]||'').trim(),sub:(r[ix('細目')]||'').trim(),amt:Math.round(+(r[ix('金額（円）')]||0)),memo:r[ix('メモ')]||''})))}
+  save();fill();render();alert(n+' 件を読み込みました')}catch(err){alert('読み込めませんでした: '+err.message)}e.target.value=''};
+$('b-save').onclick=()=>{const L=id=>$(id).value.split('\n').map(s=>s.trim()).filter(Boolean);D.type=L('c-type');D.acc=L('c-acc');D.cat=L('c-cat');D.card=L('c-card');save();fill();alert('保存しました')};
+$('b-open').onclick=()=>{document.querySelectorAll('#opens input').forEach(i=>D.open[i.dataset.a]=+i.value||0);save();summary();alert('保存しました')};
+load();$('f-date').value=today();fill();render();
+if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();
+</script></body></html>
