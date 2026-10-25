@@ -22,6 +22,9 @@ nav button{margin:0;border-radius:0;background:none;color:var(--sub);border:0;pa
 .big{font-size:26px;font-weight:700}.neg{color:var(--neg)}.inc{color:var(--inc)}.sub{color:var(--sub);font-size:13px}
 .rec{display:flex;justify-content:space-between;gap:8px;padding:9px 0;border-bottom:1px solid var(--line)}
 .rec .x{width:auto;background:none;color:var(--sub);border:0;margin:0;padding:0 6px}
+.gauge{height:20px;border-radius:10px;background:var(--line);overflow:hidden}.gauge>div{height:100%;background:var(--ac);border-radius:10px}
+.tick{display:flex;justify-content:space-between;font-size:11px;color:var(--sub);margin-top:4px}
+.pill{display:inline-block;background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:2px 10px;font-size:12px;color:var(--sub)}
 .bar{height:6px;background:var(--ac);border-radius:3px;margin-top:3px}
 </style></head><body><main>
 <h1>家計簿 <span class="sub">端末内のみ保存</span></h1>
@@ -51,6 +54,15 @@ nav button{margin:0;border-radius:0;background:none;color:var(--sub);border:0;pa
  <div class="card"><h2>月ごとの収入と支出</h2><div id="g-bars"></div></div>
  <div class="card"><h2>支出の内訳</h2><select id="g-mode"><option value="cat">親細目ごと</option><option value="sub">細目ごと</option></select><div id="g-donut"></div></div>
 </div>
+<div id="v-save" hidden>
+ <div id="sv-body"></div>
+ <details id="sv-det" class="card"><summary style="cursor:pointer;color:var(--sub);font-size:15px">目標を決める・変える</summary>
+  <label>目標の名前</label><input id="g-name" placeholder="例: 旅行">
+  <div class="row"><div><label>目標の金額(円)</label><input type="number" id="g-amt" inputmode="numeric"></div><div><label>期限(月)</label><input type="month" id="g-due"></div></div>
+  <label>貯金用の口座</label><select id="g-acc"></select>
+  <button id="b-goal">目標を保存</button><button class="sec" id="b-goal-del">目標を消す</button>
+  <p class="sub">貯金用の口座は、「設定」の候補リストに、たとえば「貯金」を足してから選びます。その口座に、銀行口座などから「振替」で入れた分が、貯金として数えられます。</p></details>
+</div>
 <div id="v-set" hidden>
  <div class="card"><h2>データ</h2>
   <button id="b-csv">CSVで書き出し</button><button class="sec" id="b-json">バックアップ(JSON)を書き出し</button>
@@ -77,7 +89,7 @@ nav button{margin:0;border-radius:0;background:none;color:var(--sub);border:0;pa
   <p class="sub">期首残高は、記録を付け始める前の残高です。カードは0のままにします。</p></div>
 </div>
 </main>
-<nav><button data-v="add" class="on">記録</button><button data-v="sum">集計</button><button data-v="graph">グラフ</button><button data-v="set">設定</button></nav>
+<nav><button data-v="add" class="on">記録</button><button data-v="sum">集計</button><button data-v="graph">グラフ</button><button data-v="save">貯金</button><button data-v="set">設定</button></nav>
 <style>textarea{width:100%;font:inherit;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--tx)}</style>
 <script>
 const $=id=>document.getElementById(id);
@@ -109,6 +121,40 @@ function runFixed(){let n=0;const t=today(),cur=ymdP(t);const ci=cur.y*12+cur.m-
  (D.fixed||[]).forEach(f=>{const sp=f.start.split('-').map(Number);for(let i=sp[0]*12+sp[1]-1;i<=ci;i++){const date=toDate(i,f.day),k=f.id+'|'+date.slice(0,7);
   if(date<=t&&!D.fxDone[k]){D.fxDone[k]=1;D.recs.push({date,type:'支出',acc:f.acc,to:'',cat:f.cat,sub:f.sub||'',amt:f.amt,memo:f.name,fx:f.id});n++}}});
  if(n)save();return n}
+function calcBal(until,cy){const bal={};D.acc.forEach(a=>bal[a]=+D.open[a]||0);cy=cy||cycles();
+ D.recs.forEach(r=>{if(until&&r.date>until)return;const A=r.acc;if(!(A in bal))bal[A]=0;
+  if(r.type==='支出')bal[A]-=r.amt;else if(r.type==='収入')bal[A]+=r.amt;else if(r.type==='調整')bal[A]-=r.amt;
+  else if(r.type==='振替'){bal[A]-=r.amt;if(r.to){bal[r.to]=(bal[r.to]||0)+r.amt}}});
+ cy.filter(x=>x.done&&x.rem>0&&(!until||x.pay<=until)).forEach(x=>{bal[x.from]=(bal[x.from]||0)-x.rem;bal[x.card]=(bal[x.card]||0)+x.rem});
+ return bal}
+function renderSave(){const g=D.goal,el=$('sv-body');
+ opts($('g-acc'),D.acc);if(!$('g-due').value)$('g-due').value=toDate(new Date().getFullYear()*12+new Date().getMonth()+6,1).slice(0,7);
+ if(!g){el.innerHTML='<div class="card"><h2>目標</h2><p class="sub">まだ目標がありません。下のフォームから、目標を決めてみましょう。</p></div>';$('sv-det').open=true;return}
+ const t=today(),cur=ymdP(t),ci=cur.y*12+cur.m-1,idx=i=>Math.floor(i/12)+'-'+String(i%12+1).padStart(2,'0');
+ const cy=cycles(),endOf=i=>{const e=toDate(i,31);return e>t?t:e};
+ const val=i=>Math.max(0,Math.round(calcBal(endOf(i),cy)[g.acc]||0));
+ const now=val(ci),pct=Math.min(100,Math.round(now/g.amt*100)),rem=Math.max(0,g.amt-now);
+ const dp=g.due.split('-').map(Number),left=dp[0]*12+dp[1]-1-ci;
+ const first=D.recs.filter(r=>r.acc===g.acc||r.to===g.acc).map(r=>ym(r.date)).sort()[0];
+ let s0=ci-5;if(first){const f=ymdP(first+'-01');s0=Math.max(s0,f.y*12+f.m-1)}
+ const n=ci-s0+1,avg=Math.round((now-val(s0-1))/n);
+ let reach='',note='';
+ if(rem===0){reach='目標に届きました';note='おめでとうございます。ここまで続けてこられました。'}
+ else if(avg>0){const k=Math.ceil(rem/avg),r=ci+k,ry=Math.floor(r/12),rm=r%12+1;reach=`${ry}年 ${rm}月ごろ`}
+ else reach='まだ増えていません';
+ let need='';if(rem>0){if(left>0){const nd=Math.ceil(rem/left);need=`<div class="kv"><span>期限に間に合う毎月の額</span><b>${yen(nd)} / 月</b></div>`;
+   note=avg>=nd?'いまのペースで、期限に届きそうです。':(avg>0?`あと約${left}か月。毎月あと${yen(nd-avg)}ふやせると、期限に届きます。`:`あと約${left}か月。毎月${yen(nd)}ずつ貯めると、期限に届きます。`)}
+  else if(left===0)note='期限は今月です。あと'+yen(rem)+'で目標に届きます。';
+  else note='期限を過ぎました。期限を決め直すこともできます。'}
+ const pts=[];for(let k=0;k<6;k++)pts.push(val(ci-5+k));
+ const top=Math.max(g.amt,...pts)||1,X=k=>20+k*60,Y=v=>130-v/top*110;
+ const line=pts.map((v,k)=>X(k)+','+Y(v).toFixed(1)).join(' ');
+ const svg=`<svg viewBox="0 0 340 156" style="width:100%"><line x1="0" x2="340" y1="130" y2="130" stroke="var(--line)"/><line x1="20" x2="320" y1="${Y(g.amt)}" y2="${Y(g.amt)}" stroke="var(--sub)" stroke-dasharray="4 4"/><text x="318" y="${Y(g.amt)-5}" text-anchor="end" font-size="10" fill="var(--sub)">目標 ${short(g.amt)}円</text><polygon points="${line} 320,130 20,130" fill="var(--ac)" opacity=".15"/><polyline points="${line}" fill="none" stroke="var(--ac)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>${pts.map((v,k)=>`<circle cx="${X(k)}" cy="${Y(v).toFixed(1)}" r="3.5" fill="var(--ac)"/>`).join('')}${pts.map((v,k)=>`<text x="${X(k)}" y="146" text-anchor="middle" font-size="10" fill="var(--sub)">${(ci-5+k)%12+1}月</text>`).join('')}<text x="316" y="${Math.max(12,Y(pts[5])-9)}" text-anchor="end" font-size="11" font-weight="700" fill="var(--tx)">${short(pts[5])}円</text></svg>`;
+ el.innerHTML=`<div class="card"><h2>目標</h2><div class="kv" style="border:0"><span><b>${esc(g.name)}</b> <span class="pill">${g.due.replace('-','/')}まで</span></span><b>${pct}%</b></div>
+ <div class="gauge"><div style="width:${pct}%"></div></div><div class="tick"><span>0円</span><span>${short(g.amt/4)}</span><span>${short(g.amt/2)}</span><span>${short(g.amt*3/4)}</span><span>${short(g.amt)}円</span></div>
+ <div class="kv" style="margin-top:10px"><span>貯まった金額</span><b style="font-size:22px">${yen(now)}</b></div><div class="kv"><span>目標まであと</span><b>${yen(rem)}</b></div></div>
+ <div class="card"><h2>貯金の推移</h2>${svg}</div>
+ <div class="card"><h2>ペースの目安</h2><div class="kv"><span>直近${n}か月の平均(今月を含む)</span><b>${yen(avg)} / 月</b></div><div class="kv"><span>このペースなら</span><b>${reach}</b></div>${need}${note?`<p class="sub" style="margin-bottom:0">${note}</p>`:''}</div>`}
 function remindUi(){const n=D.remindDays??30,last=D.lastExport||'',ds=last?dd(today(),last):null;
  $('r-days').value=n;$('r-last').textContent=last?`前回の書き出し: ${last}(${ds}日前)`:'まだ書き出していません';
  const show=n>0&&D.recs.length>0&&D.snooze!==today()&&(ds===null||ds>=n);$('remind').hidden=!show;
@@ -132,7 +178,7 @@ function render(){
  const lm=$('l-sel').value;let rs=D.recs.map((r,i)=>({...r,i})).filter(r=>!lm||ym(r.date)===lm).sort((a,b)=>b.date.localeCompare(a.date)||b.i-a.i);if(!lm)rs=rs.slice(0,30);
  $('list').innerHTML=rs.map(r=>`<div class="rec"><div><div>${esc(r.date.slice(5))} ${esc(r.cat||'')}${r.sub?'／'+esc(r.sub):''}</div><div class="sub">${esc(r.type)}・${esc(r.acc)}${r.to?'→'+esc(r.to):''}${r.memo?'・'+esc(r.memo):''}</div></div>
   <div style="text-align:right"><b class="${r.type==='支出'?'neg':r.type==='収入'?'inc':''}">${yen(r.amt)}</b><button class="x" data-edit="${r.i}">編集</button><button class="x" data-del="${r.i}">削除</button></div></div>`).join('')||'<p class="sub">まだ記録がありません</p>';
- $('cnt').textContent=`記録 ${D.recs.length} 件`;remindUi();
+ $('cnt').textContent=`記録 ${D.recs.length} 件`;remindUi();renderSave();
  summary();
 }
 function summary(){
@@ -142,11 +188,7 @@ function summary(){
  const fx=D.fixed||[],ft=fx.reduce((a,f)=>a+f.amt,0),fm=D.recs.filter(r=>r.fx&&ym(r.date)===m).reduce((a,r)=>a+r.amt,0),fmx=Math.max(1,...fx.map(f=>f.amt));
  $('s-fx').innerHTML=fx.length?`<div class="kv"><span>毎月の合計</span><b>${yen(ft)}</b></div><div class="kv"><span>年間にすると</span><b>${yen(ft*12)}</b></div><div class="kv"><span>${m}の固定費</span><b>${yen(fm)}${out?' <span class="sub">(支出の'+Math.round(fm/out*100)+'%)</span>':''}</b></div>`+[...fx].sort((a,b)=>b.amt-a.amt).map(f=>`<div style="margin-top:8px"><div class="kv" style="border:0;padding-bottom:0"><span>${esc(f.name)}</span><span>${yen(f.amt)}</span></div><div class="bar" style="width:${f.amt/fmx*100}%"></div></div>`).join(''):'<p class="sub">固定費は「設定」で登録できます</p>';
  charts(m,inc,out);
- const bal={};D.acc.forEach(a=>bal[a]=+D.open[a]||0);
- D.recs.forEach(r=>{const A=r.acc;if(!(A in bal))bal[A]=0;
-  if(r.type==='支出')bal[A]-=r.amt;else if(r.type==='収入')bal[A]+=r.amt;else if(r.type==='調整')bal[A]-=r.amt;
-  else if(r.type==='振替'){bal[A]-=r.amt;if(r.to){bal[r.to]=(bal[r.to]||0)+r.amt}}});
- const cy=cycles();cy.filter(x=>x.done&&x.rem>0).forEach(x=>{bal[x.from]=(bal[x.from]||0)-x.rem;bal[x.card]=(bal[x.card]||0)+x.rem});
+ const cy=cycles(),bal=calcBal(null,cy);
  const up=cy.filter(x=>!x.done),dn=cy.filter(x=>x.done&&x.rem>0).slice(-2);
  $('s-bill').innerHTML=[...up.slice(0,4),...dn.reverse()].map(x=>`<div class="kv"><span>${esc(x.pay.slice(5).replace('-','/'))} ${esc(x.card)}${x.done?'<span class="sub">(引落済)</span>':''}${x.manual?'<div class="sub">請求 '+yen(x.amt)+'、手入力の振替 '+yen(x.manual)+'</div>':''}</span><b>${yen(x.rem)}</b></div>`).join('')||'<p class="sub">引落予定はありません</p>';
  $('s-acc').innerHTML=Object.entries(bal).map(([a,v])=>`<div class="kv"><span>${esc(a)}${D.card.includes(a)?'<span class="sub">(未払い)</span>':''}</span><b class="${v<0?'neg':''}">${yen(v)}</b></div>`).join('');
@@ -197,7 +239,10 @@ $('f-type').onchange=typeUi;$('m-sel').onchange=summary;$('g-msel').onchange=()=
 $('list').onclick=e=>{const ed=e.target.dataset.edit;if(ed!==undefined){const r=D.recs[+ed];$('f-date').value=r.date;$('f-type').value=r.type;typeUi();$('f-acc').value=r.acc;$('f-to').value=r.to||'';$('f-cat').value=r.cat;$('f-sub').value=r.sub||'';$('f-amt').value=r.amt;$('f-memo').value=r.memo||'';setEdit(+ed);scrollTo(0,0);return}
  const i=e.target.dataset.del;if(i!==undefined&&confirm('この記録を削除しますか?')){D.recs.splice(+i,1);setEdit(null);save();fill();render()}};
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
- ['add','sum','graph','set'].forEach(v=>$('v-'+v).hidden=v!==b.dataset.v);if(b.dataset.v==='sum'||b.dataset.v==='graph')summary()});
+ ['add','sum','graph','save','set'].forEach(v=>$('v-'+v).hidden=v!==b.dataset.v);if(b.dataset.v==='sum'||b.dataset.v==='graph')summary();if(b.dataset.v==='save')renderSave()});
+$('b-goal').onclick=()=>{const amt=Math.round(+$('g-amt').value),name=$('g-name').value.trim();if(!name||!amt||!$('g-due').value||!$('g-acc').value)return alert('名前・金額・期限・口座を入れてください');
+ D.goal={name,amt,due:$('g-due').value,acc:$('g-acc').value};save();$('sv-det').open=false;renderSave()};
+$('b-goal-del').onclick=()=>{if(confirm('目標を消しますか?(記録は消えません)')){D.goal=null;save();renderSave()}};
 $('b-csv').onclick=()=>{markExport();dl(`kakeibo_${today()}.csv`,'﻿'+[COLS,...D.recs.map(r=>[r.date,r.type,r.acc,r.to,r.cat,r.sub,r.amt,r.memo])].map(r=>r.map(csvEsc).join(',')).join('\r\n'),'text/csv')};
 $('b-json').onclick=()=>{markExport();dl(`kakeibo_backup_${today()}.json`,JSON.stringify(D),'application/json')};
 $('r-go').onclick=()=>$('b-json').onclick();
