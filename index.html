@@ -114,7 +114,7 @@ function summary(){
  $('s-cat').innerHTML=ce.map(([k,v])=>`<div><div class="kv" style="border:0;padding-bottom:0"><span>${esc(k)}</span><span>${yen(v)}</span></div><div class="bar" style="width:${v/mx*100}%"></div></div>`).join('')||'<p class="sub">支出なし</p>';
  const bal={};D.acc.forEach(a=>bal[a]=+D.open[a]||0);
  D.recs.forEach(r=>{const A=r.acc;if(!(A in bal))bal[A]=0;
-  if(r.type==='支出')bal[A]-=r.amt;else if(r.type==='収入'||r.type==='調整')bal[A]+=r.amt;
+  if(r.type==='支出')bal[A]-=r.amt;else if(r.type==='収入')bal[A]+=r.amt;else if(r.type==='調整')bal[A]-=r.amt;
   else if(r.type==='振替'){bal[A]-=r.amt;if(r.to){bal[r.to]=(bal[r.to]||0)+r.amt}}});
  const cy=cycles();cy.filter(x=>x.done&&x.rem>0).forEach(x=>{bal[x.from]=(bal[x.from]||0)-x.rem;bal[x.card]=(bal[x.card]||0)+x.rem});
  const up=cy.filter(x=>!x.done),dn=cy.filter(x=>x.done&&x.rem>0).slice(-2);
