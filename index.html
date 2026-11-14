@@ -79,6 +79,11 @@ nav button{margin:0;border-radius:0;background:none;color:var(--sub);border:0;pa
   <label>親細目</label><textarea id="c-cat" rows="8"></textarea>
   <label>カード口座(クレジット)</label><textarea id="c-card" rows="2"></textarea>
   <button id="b-save">候補を保存</button></div>
+ <div class="card"><h2>口座の名前を変える・まとめる</h2>
+  <label>元の口座</label><select id="rn-from"></select>
+  <label>新しい名前(今ある口座名を入れると、その口座にまとめます)</label><input id="rn-to" list="rn-list"><datalist id="rn-list"></datalist>
+  <button id="b-rn">名前を変える</button>
+  <p class="sub">記録・カードの設定・固定費・残高合わせ・貯金の目標の口座名も、まとめて書き換えます。口座の名前は、候補リストではなく、ここで変えてください。</p></div>
  <div class="card"><h2>毎月の固定費(自動で記録)</h2><div id="fxlist"></div>
   <label>名前</label><input id="x-name" placeholder="例: Claude">
   <div class="row"><div><label>金額(円)</label><input type="number" id="x-amt" inputmode="numeric"></div><div><label>毎月の日</label><input type="number" id="x-day" value="1" min="1" max="31"></div></div>
@@ -87,7 +92,7 @@ nav button{margin:0;border-radius:0;background:none;color:var(--sub);border:0;pa
   <button id="b-fx">固定費を追加</button>
   <p class="sub">アプリを開いたときに、その月の日付が来ている分を支出として自動で記録します。記録を消しても、同じ月の分は作り直しません。固定費を削除すると、これから先の分が止まります。過去の記録は残ります。</p></div>
  <div class="card"><h2>カードの設定</h2><div id="cardcfg"></div><button id="b-cc">カード設定を保存</button>
-  <p class="sub">締め日の翌日からの利用分は、次の締め日の請求になります。締め後の月数が1なら、締め日の翌月が支払月です。支払日を過ぎると、引落元の口座から自動で引き落とします。</p></div>
+  <p class="sub">締め日の翌日からの利用分は、次の締め日の請求になります。支払日を過ぎると、引落元の口座から自動で引き落とします。カードを増やすときは、候補リストの「口座」と「カード口座」の両方に名前を足してください。</p></div>
  <div class="card"><h2>口座の残高を合わせる</h2><div id="opens"></div><button id="b-open">保存</button>
   <p class="sub">実際の残高と、その残高を確かめた日を入れます。その日より後の記録だけが、残高に反映されます。同じ日の記録は、すでに残高に含まれているものとして、数えません。カードは、未払いの額をマイナスで入れます(例: −64,900)。空にすると、その口座は「0円から、すべての記録を足す」計算になります。</p></div>
 </div>
@@ -117,9 +122,15 @@ function fill(){
 $('c-acc').value=D.acc.join('\n');$('c-cat').value=D.cat.join('\n');$('c-card').value=D.card.join('\n');
  $('opens').innerHTML=D.acc.map(a=>{const an=(D.anchor||{})[a]||{};return `<label>${esc(a)}</label><div class="row"><input type="number" inputmode="numeric" placeholder="実際の残高(円)" data-a="${esc(a)}" data-k="amt" value="${an.amt??''}"><input type="date" data-a="${esc(a)}" data-k="date" value="${an.date||today()}"></div>`}).join('');
  const lk=$('l-sel').value;$('l-sel').innerHTML='<option value="">直近30件</option>'+months().map(m=>`<option>${m}</option>`).join('');$('l-sel').value=lk;
- $('cardcfg').innerHTML=D.card.map(c=>{const g=cardCfg(c);return `<div data-c="${esc(c)}"><label>${esc(c)}</label><div class="row"><input type="number" placeholder="締め日" value="${g.close}" data-k="close"><input type="number" placeholder="支払日" value="${g.pay}" data-k="pay"><input type="number" placeholder="締め後の月数" value="${g.lag}" data-k="lag"></div><select data-k="from">${D.acc.map(a=>`<option${a===g.from?' selected':''}>${esc(a)}</option>`).join('')}</select><div class="sub">締め日 / 支払日 / 締め後の月数 / 引落元</div></div>`}).join('');
+ $('cardcfg').innerHTML=D.card.map(c=>{const g=cardCfg(c),banks=D.acc.filter(a=>!D.card.includes(a)),ok=!!(D.cardCfg||{})[c]&&banks.includes(g.from);return `<div data-c="${esc(c)}" style="border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-top:10px"><b>💳 ${esc(c)}</b>
+  <div class="row"><div><label>締め日</label><input type="number" min="1" max="31" value="${g.close}" data-k="close"></div><div><label>支払日</label><input type="number" min="1" max="31" value="${g.pay}" data-k="pay"></div><div><label>締め後の月数</label><input type="number" min="0" max="3" value="${g.lag}" data-k="lag"></div></div>
+  <label>引落元の口座(お金が出ていく銀行口座)</label><select data-k="from">${ok?'':'<option value="" selected>選んでください</option>'}${banks.map(a=>`<option${a===g.from?' selected':''}>${esc(a)}</option>`).join('')}</select>
+  <div class="flow sub" style="margin-top:8px;line-height:1.7"></div></div>`}).join('');
+ document.querySelectorAll('#cardcfg [data-c]').forEach(flowText);
  opts($('x-acc'),D.acc);opts($('x-cat'),D.cat);if(!$('x-start').value)$('x-start').value=today().slice(0,7);
  $('fxlist').innerHTML=(D.fixed||[]).map(f=>`<div class="rec"><div><div>${esc(f.name)}</div><div class="sub">毎月${f.day}日・${esc(f.acc)}・${esc(f.cat)}${f.sub?'／'+esc(f.sub):''}</div></div><div style="text-align:right"><b>${yen(f.amt)}</b><button class="x" data-fxdel="${f.id}">削除</button></div></div>`).join('')||'<p class="sub">まだ登録がありません</p>';
+ const ua=usedAccs();$('rn-from').innerHTML=ua.map(a=>`<option value="${esc(a)}">${esc(a)}${D.acc.includes(a)?'':'(候補にない口座)'}</option>`).join('');
+ $('rn-list').innerHTML=D.acc.map(a=>`<option value="${esc(a)}">`).join('');
  typeUi();
 }
 function runFixed(){let n=0;const t=today(),cur=ymdP(t);const ci=cur.y*12+cur.m-1;
@@ -129,6 +140,16 @@ function runFixed(){let n=0;const t=today(),cur=ymdP(t);const ci=cur.y*12+cur.m-
 const EFFL={in:'収入(口座が増える)',out:'支出(口座が減る)',move:'振替(口座から口座へ移す)',adj:'カード請求の調整(請求が増える)'};
 const EFFS={in:'収入(増える)',out:'支出(減る)',move:'振替(移す)',adj:'請求の調整'};
 function eff(t){return((D.typeEff||{})[t])||({'支出':'out','収入':'in','振替':'move','調整':'adj'})[t]||'out'}
+function usedAccs(){const u=new Set(D.acc);D.recs.forEach(r=>{if(r.acc)u.add(r.acc);if(r.to)u.add(r.to)});
+ Object.values(D.cardCfg||{}).forEach(g=>g.from&&u.add(g.from));(D.fixed||[]).forEach(f=>u.add(f.acc));if(D.goal)u.add(D.goal.acc);return[...u]}
+function renameAcc(a,b){const merge=D.acc.includes(b)&&a!==b;
+ D.recs.forEach(r=>{if(r.acc===a)r.acc=b;if(r.to===a)r.to=b});
+ const cc=D.cardCfg||{};Object.values(cc).forEach(g=>{if(g.from===a)g.from=b});if(cc[a]){if(!cc[b])cc[b]=cc[a];delete cc[a]}
+ (D.fixed||[]).forEach(f=>{if(f.acc===a)f.acc=b});if(D.goal&&D.goal.acc===a)D.goal.acc=b;
+ const an=D.anchor||{};if(an[a]){if(!an[b])an[b]=an[a];delete an[a]}
+ if(D.open&&D.open[a]!==undefined){if(D.open[b]===undefined)D.open[b]=D.open[a];delete D.open[a]}
+ const ren=l=>{const i=l.indexOf(a);if(i<0)return l;if(l.includes(b)){l.splice(i,1)}else l[i]=b;return l};
+ ren(D.acc);ren(D.card);if(!D.acc.includes(b))D.acc.push(b);if(D.card.includes(a))D.card=D.card.filter(x=>x!==a);return merge}
 function calcBal(until,cy){cy=cy||cycles();const AN=D.anchor||{},bal={},ev=[];
  D.acc.forEach(a=>bal[a]=AN[a]?+AN[a].amt||0:+D.open[a]||0);
  D.recs.forEach(r=>{const A=r.acc;
@@ -172,7 +193,10 @@ function remindUi(){const n=D.remindDays??30,last=D.lastExport||'',ds=last?dd(to
  const show=n>0&&D.recs.length>0&&D.snooze!==today()&&(ds===null||ds>=n);$('remind').hidden=!show;
  if(show)$('remind-t').textContent=ds===null?'まだバックアップを書き出していません。':`前回の書き出しから ${ds} 日たっています。`}
 function markExport(){D.lastExport=today();save();remindUi()}
-function cardCfg(c){return Object.assign({close:15,pay:10,lag:1,from:D.acc[0]},(D.cardCfg||{})[c])}
+function cardCfg(c){return Object.assign({close:15,pay:10,lag:1,from:D.acc.find(a=>!D.card.includes(a))||D.acc[0]},(D.cardCfg||{})[c])}
+function flowText(d){const v=k=>d.querySelector(`[data-k=${k}]`).value,c=d.dataset.c,cl=+v('close')||15,py=+v('pay')||10,lg=+v('lag'),fr=v('from');
+ const when=lg===0?'同じ月':lg===1?'翌月':lg===2?'翌々月':lg+'か月後';
+ d.querySelector('.flow').innerHTML=`① 毎月${cl}日までの${esc(c)}の利用分を、まとめて請求<br>② ${when}の${py}日に、<b>${fr?esc(fr):'<span class="neg">(引落元が未設定)</span>'}</b> → <b>${esc(c)}</b> へお金が移動<br>③ ${fr?esc(fr):'引落元'}の残高が減り、${esc(c)}の未払いが0に近づく`}
 function ymdP(s){const[y,m,d]=s.split('-').map(Number);return{y,m,d}}
 function dim(y,m){return new Date(y,m,0).getDate()}
 function toDate(i,day){const y=Math.floor(i/12),m=i%12+1;return `${y}-${String(m).padStart(2,'0')}-${String(Math.min(day,dim(y,m))).padStart(2,'0')}`}
@@ -202,8 +226,8 @@ function summary(){
  charts(m,inc,out);
  const cy=cycles(),bal=calcBal(null,cy);
  const up=cy.filter(x=>!x.done),dn=cy.filter(x=>x.done&&x.rem>0).slice(-2);
- $('s-bill').innerHTML=[...up.slice(0,4),...dn.reverse()].map(x=>`<div class="kv"><span>${esc(x.pay.slice(5).replace('-','/'))} ${esc(x.card)}${x.done?'<span class="sub">(引落済)</span>':''}${x.manual?'<div class="sub">請求 '+yen(x.amt)+'、手入力の振替 '+yen(x.manual)+'</div>':''}</span><b>${yen(x.rem)}</b></div>`).join('')||'<p class="sub">引落予定はありません</p>';
- $('s-acc').innerHTML=Object.entries(bal).map(([a,v])=>`<div class="kv"><span>${esc(a)}${D.card.includes(a)?'<span class="sub">(未払い)</span>':''}</span><b class="${v<0?'neg':''}">${yen(v)}</b></div>`).join('');
+ $('s-bill').innerHTML=[...up.slice(0,4),...dn.reverse()].map(x=>`<div class="kv"><span>${esc(x.pay.slice(5).replace('-','/'))} ${esc(x.card)}${x.done?'<span class="sub">(引落済)</span>':''}<div class="sub">${esc(x.from)} → ${esc(x.card)}</div>${x.manual?'<div class="sub">請求 '+yen(x.amt)+'、手入力の振替 '+yen(x.manual)+'</div>':''}</span><b>${yen(x.rem)}</b></div>`).join('')||'<p class="sub">引落予定はありません</p>';
+ $('s-acc').innerHTML=Object.entries(bal).map(([a,v])=>`<div class="kv"><span>${esc(a)}${D.card.includes(a)?'<span class="sub">(未払い)</span>':''}${D.acc.includes(a)?'':'<div class="sub">候補にない口座です。「設定」の「口座の名前を変える・まとめる」で、正しい口座にまとめられます。</div>'}</span><b class="${v<0?'neg':''}">${yen(v)}</b></div>`).join('');
 }
 const PAL=['#4fc79c','#f5c042','#5fa2f0','#ee5a5f','#a984e8','#45cfc6','#e2a45f','#94a3b5'];
 function short(v){return v>=10000?(v/10000).toFixed(v>=100000?0:1)+'万':String(v)}
@@ -272,13 +296,18 @@ $('typecfg').onchange=e=>{const t=e.target.dataset.te;if(t===undefined)return;D.
 $('typecfg').onclick=e=>{const t=e.target.dataset.trdel;if(t===undefined)return;const n=D.recs.filter(r=>r.type===t).length;
  if(n)return alert(`「${t}」は ${n} 件の記録で使われているので、削除できません`);if(D.type.length<2)return alert('最後の1つは削除できません');
  if(confirm(`「${t}」を削除しますか?`)){D.type=D.type.filter(x=>x!==t);save();fill()}};
-$('b-save').onclick=()=>{const L=id=>$(id).value.split('\n').map(s=>s.trim()).filter(Boolean);D.acc=L('c-acc');D.cat=L('c-cat');D.card=L('c-card');save();fill();alert('保存しました')};
+$('b-rn').onclick=()=>{const a=$('rn-from').value,b=$('rn-to').value.trim();if(!a||!b)return alert('元の口座と新しい名前を入れてください');if(a===b)return alert('同じ名前です');
+ const merge=D.acc.includes(b);if(!confirm(merge?`「${a}」を「${b}」にまとめますか?\n記録や設定の「${a}」は、すべて「${b}」になります。`:`「${a}」を「${b}」に名前を変えますか?`))return;
+ renameAcc(a,b);save();$('rn-to').value='';fill();render();renderSave();alert(merge?'まとめました':'名前を変えました')};
+$('b-save').onclick=()=>{const L=id=>$(id).value.split('\n').map(s=>s.trim()).filter(Boolean);const na=L('c-acc'),gone=D.acc.filter(a=>!na.includes(a)&&usedAccs().includes(a)&&(D.recs.some(r=>r.acc===a||r.to===a)||Object.values(D.cardCfg||{}).some(g=>g.from===a)));
+ if(gone.length&&!confirm(`「${gone.join('」「')}」は記録や設定で使われています。候補から消すと、残高に「候補にない口座」として残ります。\n名前を変えたいときは、「口座の名前を変える・まとめる」を使ってください。\nこのまま保存しますか?`))return;D.acc=na;D.cat=L('c-cat');D.card=L('c-card');save();fill();alert('保存しました')};
 $('b-fx').onclick=()=>{const amt=Math.round(+$('x-amt').value),name=$('x-name').value.trim(),day=Math.min(31,Math.max(1,Math.round(+$('x-day').value)||1));
  if(!name||!amt||!$('x-start').value)return alert('名前・金額・開始月を入れてください');
  D.fixed=D.fixed||[];D.fixed.push({id:String(Date.now()),name,amt,day,acc:$('x-acc').value,cat:$('x-cat').value,sub:$('x-sub').value,start:$('x-start').value});
  const n=runFixed();save();$('x-name').value='';$('x-amt').value='';$('x-sub').value='';fill();render();alert('登録しました'+(n?'('+n+'件を記録に追加しました)':''))};
 $('fxlist').onclick=e=>{const id=e.target.dataset.fxdel;if(id&&confirm('この固定費を削除しますか?(過去の記録は残ります)')){D.fixed=D.fixed.filter(f=>f.id!==id);save();fill();render()}};
-$('b-cc').onclick=()=>{D.cardCfg=D.cardCfg||{};document.querySelectorAll('#cardcfg [data-c]').forEach(d=>{const o={};d.querySelectorAll('[data-k]').forEach(i=>o[i.dataset.k]=i.dataset.k==='from'?i.value:(+i.value||0));D.cardCfg[d.dataset.c]=o});save();summary();alert('保存しました')};
+$('cardcfg').oninput=e=>{const d=e.target.closest('[data-c]');if(d)flowText(d)};
+$('b-cc').onclick=()=>{let bad='';D.cardCfg=D.cardCfg||{};document.querySelectorAll('#cardcfg [data-c]').forEach(d=>{const o={};d.querySelectorAll('[data-k]').forEach(i=>o[i.dataset.k]=i.dataset.k==='from'?i.value:(+i.value||0));if(!o.from){bad=d.dataset.c;return}D.cardCfg[d.dataset.c]=o});if(bad){alert(`「${bad}」の引落元の口座を選んでください`);return}save();summary();alert('保存しました')};
 $('b-open').onclick=()=>{D.anchor={};document.querySelectorAll('#opens input[data-k=amt]').forEach(i=>{if(i.value==='')return;const d=document.querySelector(`#opens input[data-k=date][data-a="${i.dataset.a}"]`).value||today();D.anchor[i.dataset.a]={amt:Math.round(+i.value)||0,date:d}});save();fill();summary();renderSave();alert('保存しました')};
 load();$('f-date').value=today();runFixed();fill();render();
 if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();
