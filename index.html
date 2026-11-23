@@ -36,9 +36,9 @@ nav button{margin:0;border-radius:0;background:none;color:var(--sub);border:0;pa
 <div id="v-add">
  <div class="card"><h2>記録を追加</h2>
   <label>日付</label><input type="date" id="f-date">
-  <div class="row"><div><label>収支</label><select id="f-type"></select><div class="sub" id="f-eff"></div></div><div><label>金額(円)</label><input id="f-amt" type="number" inputmode="numeric"></div></div>
+  <div class="row"><div><label>収支</label><select id="f-type"></select><div class="sub" id="f-eff"></div></div><div><label>金額(円)</label><input id="f-amt" type="number" inputmode="numeric" min="0"></div></div>
   <div class="row"><div><label>口座</label><select id="f-acc"></select></div><div id="w-to"><label>振替先</label><select id="f-to"></select></div></div>
-  <div class="row"><div><label id="l-cat">親細目</label><select id="f-cat"></select></div><div><label>細目</label><input id="f-sub"></div></div>
+  <div class="row"><div><label id="l-cat">親細目</label><select id="f-cat"></select></div><div><label>細目</label><select id="f-subsel"></select><input id="f-sub" placeholder="細目を入力" style="margin-top:6px" hidden></div></div>
   <label>メモ</label><input id="f-memo">
   <button id="b-add">追加</button><button class="sec" id="b-cancel" hidden>編集をやめる</button></div>
  <div class="card"><h2>記録の一覧</h2><select id="l-sel"></select><div id="list"></div></div>
@@ -53,10 +53,30 @@ nav button{margin:0;border-radius:0;background:none;color:var(--sub);border:0;pa
  <div class="card"><h2>口座残高</h2><div id="s-acc"></div></div>
 </div>
 <div id="v-graph" hidden>
+<div id="g-main">
  <div class="card"><label>表示月</label><select id="g-msel"></select></div>
  <div class="card"><h2>収支の比率</h2><div id="g-ratio"></div></div>
  <div class="card"><h2>月ごとの収入と支出</h2><div id="g-bars"></div></div>
  <div class="card"><h2>支出の内訳</h2><select id="g-mode"><option value="cat">親細目ごと</option><option value="sub">細目ごと</option></select><div id="g-donut"></div></div>
+ <div class="card" style="padding:4px 14px"><div class="mrow" id="g-go"><div class="ic">🔍</div><div class="t"><div>検索</div><div class="sub">親細目・細目ごとに記録を見る</div></div><div class="chev">›</div></div></div>
+</div>
+<div id="g-search" hidden>
+ <div style="display:flex;align-items:center;gap:6px;margin:6px 0 -4px"><button id="gs-back" class="sec" style="width:auto;margin:0;padding:6px 12px;border:0;background:none;color:var(--ac);font-weight:600">‹ グラフ</button><b style="font-size:17px">検索</b></div>
+ <div class="card">
+  <label>期間</label><select id="gs-month"></select>
+  <div class="row"><div><label>親細目</label><select id="gs-cat"></select></div><div><label>細目</label><select id="gs-sub"></select></div></div>
+  <label>キーワード(細目・メモ)</label><input id="gs-kw" placeholder="例: ドトール">
+ </div>
+ <div class="card" id="gs-sum"></div>
+ <div class="card" id="gs-brk-c"><h2>細目ごとの内訳</h2><div id="gs-brk"></div></div>
+ <div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><h2 id="gs-cnt" style="margin:0">記録</h2><button class="sec" id="gs-selbtn" style="width:auto;margin:0;padding:6px 14px">選択</button></div>
+  <div id="gs-bulk" hidden style="border:1px solid var(--ac);border-radius:12px;padding:10px 12px;margin-top:10px">
+   <div style="display:flex;justify-content:space-between;align-items:center"><b id="gs-selcnt" style="white-space:nowrap">0件を選択中</b><button id="gs-all" style="width:auto;margin:0;padding:4px 6px;background:none;border:0;color:var(--ac);font-weight:600;white-space:nowrap">すべて選択</button></div>
+   <div class="row"><div><label>親細目を</label><select id="gb-cat"></select></div><div><label>細目を</label><select id="gb-sub"></select></div></div>
+   <input id="gb-subin" placeholder="細目を入力" style="margin-top:6px" hidden>
+   <div class="row"><button id="gb-apply">まとめて変更</button><button class="sec" id="gb-del" style="margin-top:12px">まとめて削除</button></div></div>
+  <div id="gs-list"></div></div>
+</div>
 </div>
 <div id="v-save" hidden>
  <div id="sv-body"></div>
@@ -89,11 +109,21 @@ nav button{margin:0;border-radius:0;background:none;color:var(--sub);border:0;pa
   <label>新しい親細目</label><input id="nc-name" placeholder="例: サブスク">
   <button id="b-nc">親細目を追加</button>
   <p class="sub">「編集」で名前を変えると、過去の記録と固定費も、一緒に書き換わります。今ある親細目の名前にすると、そちらにまとめます。</p></div>
+ <div class="card" data-sec="cat"><h2>細目の候補</h2>
+  <label>親細目</label><select id="sc-cat"></select>
+  <div id="sublist" style="margin-top:6px"></div>
+  <div id="smove-box" hidden style="border:1px solid var(--ac);border-radius:12px;padding:10px 12px;margin-top:8px"><b id="smove-t"></b>
+   <label>移動先の親細目</label><select id="smove-to"></select>
+   <div class="row"><button id="b-smove">移動する</button><button class="sec" id="b-smove-c" style="margin-top:12px">やめる</button></div>
+   <p class="sub" style="margin-bottom:0">この親細目の、この細目の記録が、過去の分もすべて移動先の親細目に移ります。固定費も一緒に移ります。</p></div>
+  <label>新しい細目</label><input id="ns-name" placeholder="例: 外食">
+  <button id="b-ns">細目を追加</button>
+  <p class="sub">記録を付けるとき、選んだ親細目の候補が、細目のメニューに出ます。「編集」で名前を変えると、過去の記録の細目も一緒に書き換わります。候補を削除しても、過去の記録はそのままです。</p></div>
  <div class="card" data-sec="fixed"><h2>毎月の固定費(自動で記録)</h2><div id="fxlist"></div>
   <label>名前</label><input id="x-name" placeholder="例: Claude">
   <div class="row"><div><label>金額(円)</label><input type="number" id="x-amt" inputmode="numeric"></div><div><label>毎月の日</label><input type="number" id="x-day" value="1" min="1" max="31"></div></div>
   <div class="row"><div><label>口座</label><select id="x-acc"></select></div><div><label>親細目</label><select id="x-cat"></select></div></div>
-  <label>細目</label><input id="x-sub"><label>開始月</label><input type="month" id="x-start">
+  <label>細目</label><input id="x-sub" list="x-sublist"><datalist id="x-sublist"></datalist><label>開始月</label><input type="month" id="x-start">
   <button id="b-fx">固定費を追加</button><button class="sec" id="b-fx-cancel" hidden>編集をやめる</button>
   <p class="sub">アプリを開いたときに、その月の日付が来ている分を支出として自動で記録します。記録を消しても、同じ月の分は作り直しません。固定費を削除すると、これから先の分が止まります。過去の記録は残ります。</p></div>
  <div class="card" data-sec="acc"><h2>カードの設定</h2><div id="cardcfg"></div><button id="b-cc">カード設定を保存</button>
@@ -111,7 +141,10 @@ const DEF={recs:[],type:['支出','収入','振替','調整'],acc:['現金','銀
  cat:['食費','日用品','交通費','趣味・娯楽','交際費','衣類','通信費','家賃・光熱費','学費','給料','バイト代','仕送り','お小遣い','その他'],
  card:['クレジットカード'],open:{},fixed:[],fxDone:{},cardCfg:{'クレジットカード':{close:15,pay:10,lag:1,from:'銀行口座'}}};
 let D;
-function load(){try{D=Object.assign({},DEF,JSON.parse(localStorage.getItem(KEY)||'{}'))}catch(e){D=JSON.parse(JSON.stringify(DEF))}}
+function load(){try{D=Object.assign({},DEF,JSON.parse(localStorage.getItem(KEY)||'{}'))}catch(e){D=JSON.parse(JSON.stringify(DEF))}ensureSubs()}
+function ensureSubs(){
+ if(!D.subs){const cnt={};[...D.recs,...(D.fixed||[])].forEach(r=>{if(r.cat&&r.sub){cnt[r.cat]=cnt[r.cat]||{};cnt[r.cat][r.sub]=(cnt[r.cat][r.sub]||0)+1}});
+  D.subs={};Object.entries(cnt).forEach(([c,m])=>D.subs[c]=Object.entries(m).sort((a,b)=>b[1]-a[1]).map(e=>e[0]))}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(D))}catch(e){alert('保存できませんでした。書き出しでバックアップしてください。')}}
 const yen=n=>(n<0?'−':'')+Math.abs(Math.round(n)).toLocaleString()+'円';
 const ym=d=>d.slice(0,7);
@@ -120,9 +153,9 @@ function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt
 function months(){const s=new Set(D.recs.map(r=>ym(r.date)));s.add(ym(today()));return [...s].sort().reverse()}
 function today(){const d=new Date();return new Date(d-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)}
 function fill(){
- opts($('f-type'),D.type);opts($('f-acc'),D.acc);opts($('f-to'),D.acc,true);opts($('f-cat'),D.cat);
+ opts($('f-type'),D.type);opts($('f-acc'),D.acc);opts($('f-to'),D.acc,true);opts($('f-cat'),D.cat);$('f-cat').insertAdjacentHTML('beforeend','<option value="">なし</option>');
  const keep=$('m-sel').value;opts($('m-sel'),months());if(keep)$('m-sel').value=keep;opts($('g-msel'),months());$('g-msel').value=$('m-sel').value;
- $('typecfg').innerHTML=D.type.map(t=>`<div class="rec" style="align-items:center"><div style="white-space:nowrap"><b>${esc(t)}</b></div><div style="display:flex;gap:6px;align-items:center"><select data-te="${esc(t)}" style="width:auto;padding:8px">${Object.entries(EFFS).map(([k,v])=>`<option value="${k}"${eff(t)===k?' selected':''}>${v}</option>`).join('')}</select><button class="x" data-trren="${esc(t)}">編集</button><button class="x" data-trdel="${esc(t)}">削除</button></div></div>`).join('');
+ $('typecfg').innerHTML=D.type.map(t=>`<div class="rec" style="align-items:center"><div style="white-space:nowrap"><b>${esc(t)}</b></div><div style="display:flex;gap:6px;align-items:center"><select data-te="${esc(t)}" style="width:auto;padding:8px">${Object.entries(EFFS).map(([k,v])=>`<option value="${k}"${eff(t)===k?' selected':''}>${v}</option>`).join('')}</select><button class="x" data-tmv="${esc(t)}|-1">↑</button><button class="x" data-tmv="${esc(t)}|1">↓</button><button class="x" data-trren="${esc(t)}">編集</button><button class="x" data-trdel="${esc(t)}">削除</button></div></div>`).join('');
  $('t-eff').innerHTML=Object.entries(EFFL).map(([k,v])=>`<option value="${k}">${v}</option>`).join('');
 
  $('opens').innerHTML=D.acc.map(a=>{const an=(D.anchor||{})[a]||{};return `<label>${esc(a)}</label><div class="row"><input type="number" inputmode="numeric" placeholder="実際の残高(円)" data-a="${esc(a)}" data-k="amt" value="${an.amt??''}"><input type="date" data-a="${esc(a)}" data-k="date" value="${an.date||today()}"></div>`}).join('');
@@ -132,9 +165,11 @@ function fill(){
   <label>引落元の口座(お金が出ていく銀行口座)</label><select data-k="from">${ok?'':'<option value="" selected>選んでください</option>'}${banks.map(a=>`<option${a===g.from?' selected':''}>${esc(a)}</option>`).join('')}</select>
   <div class="flow sub" style="margin-top:8px;line-height:1.7"></div></div>`}).join('');
  document.querySelectorAll('#cardcfg [data-c]').forEach(flowText);
- opts($('x-acc'),D.acc);opts($('x-cat'),D.cat);if(!$('x-start').value)$('x-start').value=today().slice(0,7);
+ opts($('x-acc'),D.acc);opts($('x-cat'),D.cat);$('x-cat').insertAdjacentHTML('beforeend','<option value="">なし</option>');if(!$('x-start').value)$('x-start').value=today().slice(0,7);
  $('fxlist').innerHTML=(D.fixed||[]).map(f=>`<div class="rec"><div><div>${esc(f.name)}</div><div class="sub">毎月${f.day}日・${esc(f.acc)}・${esc(f.cat)}${f.sub?'／'+esc(f.sub):''}</div></div><div style="text-align:right"><b>${yen(f.amt)}</b><button class="x" data-fxedit="${f.id}">編集</button><button class="x" data-fxdel="${f.id}">削除</button></div></div>`).join('')||'<p class="sub">まだ登録がありません</p>';
  listsUi();
+ {const k=$('sc-cat').value;$('sc-cat').innerHTML=D.cat.map(c=>`<option>${esc(c)}</option>`).join('');if(k&&D.cat.includes(k))$('sc-cat').value=k;subListUi()}
+ subUi();
  typeUi();
 }
 function runFixed(){let n=0;const t=today(),cur=ymdP(t);const ci=cur.y*12+cur.m-1;
@@ -150,8 +185,17 @@ function usedCats(){return[...new Set([...D.cat,...D.recs.map(r=>r.cat).filter(B
 function accUsed(a){return D.recs.some(r=>r.acc===a||r.to===a)||Object.values(D.cardCfg||{}).some(g=>g.from===a)||(D.fixed||[]).some(f=>f.acc===a)||(D.goal&&D.goal.acc===a)}
 function listsUi(){
  $('acclist').innerHTML=usedAccs().map(a=>{const inl=D.acc.includes(a),isc=D.card.includes(a);return `<div class="rec" style="align-items:center"><div>${isc?'💳 ':''}<b>${esc(a)}</b>${inl?'':'<div class="sub neg">一覧にない口座です。「編集」で正しい口座名にすると、まとめられます。</div>'}</div><div style="display:flex;gap:2px;align-items:center;white-space:nowrap">${inl?`<label class="sub" style="display:flex;align-items:center;gap:4px;margin:0"><input type="checkbox" data-acard="${esc(a)}" style="width:auto"${isc?' checked':''}>カード</label>`:''}<button class="x" data-aren="${esc(a)}">編集</button>${inl?`<button class="x" data-adel="${esc(a)}">削除</button>`:''}</div></div>`}).join('');
- $('catlist').innerHTML=usedCats().map(c=>{const inl=D.cat.includes(c);return `<div class="rec" style="align-items:center"><div><b>${esc(c)}</b>${inl?'':'<div class="sub">一覧にない親細目です</div>'}</div><div style="white-space:nowrap"><button class="x" data-cren="${esc(c)}">編集</button>${inl?`<button class="x" data-cdel="${esc(c)}">削除</button>`:''}</div></div>`}).join('')}
-function renameCat(a,b){D.recs.forEach(r=>{if(r.cat===a)r.cat=b});(D.fixed||[]).forEach(f=>{if(f.cat===a)f.cat=b});const i=D.cat.indexOf(a);if(i>=0){if(D.cat.includes(b))D.cat.splice(i,1);else D.cat[i]=b}else if(!D.cat.includes(b))D.cat.push(b)}
+ $('catlist').innerHTML=usedCats().map(c=>{const inl=D.cat.includes(c);return `<div class="rec" style="align-items:center"><div><b>${esc(c)}</b>${inl?'':'<div class="sub">一覧にない親細目です</div>'}</div><div style="white-space:nowrap">${inl?`<button class="x" data-cmv="${esc(c)}|-1">↑</button><button class="x" data-cmv="${esc(c)}|1">↓</button>`:''}<button class="x" data-cren="${esc(c)}">編集</button>${inl?`<button class="x" data-cdel="${esc(c)}">削除</button>`:''}</div></div>`}).join('')}
+function mv(arr,v,d){const i=arr.indexOf(v),j=i+d;if(i<0||j<0||j>=arr.length)return false;[arr[i],arr[j]]=[arr[j],arr[i]];return true}
+function subsOf(c){D.subs=D.subs||{};if(!c)return[];return D.subs[c]||(D.subs[c]=[])}
+function subUi(){const c=$('f-cat').value,cur=$('f-sub').value,l=subsOf(c);
+ $('f-subsel').innerHTML='<option value="">なし</option>'+l.map(x=>`<option>${esc(x)}</option>`).join('')+'<option value="__o">手入力</option>';syncSub(cur)}
+function syncSub(v){v=v??$('f-sub').value;const l=subsOf($('f-cat').value);$('f-sub').value=v;
+ if(v===''){$('f-subsel').value='';$('f-sub').hidden=true}else if(l.includes(v)){$('f-subsel').value=v;$('f-sub').hidden=true}else{$('f-subsel').value='__o';$('f-sub').hidden=false}}
+function subListUi(){const c=$('sc-cat').value,l=subsOf(c);
+ $('sublist').innerHTML=l.map(x=>`<div class="rec" style="align-items:center"><div><b>${esc(x)}</b></div><div style="white-space:nowrap"><button class="x" data-smv="${esc(x)}|-1">↑</button><button class="x" data-smv="${esc(x)}|1">↓</button><button class="x" data-smove="${esc(x)}">移動</button><button class="x" data-sren="${esc(x)}">編集</button><button class="x" data-sdel="${esc(x)}">削除</button></div></div>`).join('')||'<p class="sub">まだ候補がありません</p>';
+ $('x-sublist').innerHTML=subsOf($('x-cat').value).map(x=>`<option value="${esc(x)}">`).join('')}
+function renameCat(a,b){D.subs=D.subs||{};if(D.subs[a]){const t=subsOf(b);D.subs[a].forEach(x=>{if(!t.includes(x))t.push(x)});if(a!==b)delete D.subs[a]}D.recs.forEach(r=>{if(r.cat===a)r.cat=b});(D.fixed||[]).forEach(f=>{if(f.cat===a)f.cat=b});const i=D.cat.indexOf(a);if(i>=0){if(D.cat.includes(b))D.cat.splice(i,1);else D.cat[i]=b}else if(!D.cat.includes(b))D.cat.push(b)}
 function renameAcc(a,b){const merge=D.acc.includes(b)&&a!==b;
  D.recs.forEach(r=>{if(r.acc===a)r.acc=b;if(r.to===a)r.to=b});
  const cc=D.cardCfg||{};Object.values(cc).forEach(g=>{if(g.from===a)g.from=b});if(cc[a]){if(!cc[b])cc[b]=cc[a];delete cc[a]}
@@ -246,8 +290,8 @@ function summary(){
  $('s-bill').innerHTML=[...up.slice(0,4),...dn.reverse()].map(x=>`<div class="kv"><span>${esc(x.pay.slice(5).replace('-','/'))} ${esc(x.card)}${x.done?'<span class="sub">(引落済)</span>':''}<div class="sub">${esc(x.from)} → ${esc(x.card)}</div>${x.manual?'<div class="sub">請求 '+yen(x.amt)+'、手入力の振替 '+yen(x.manual)+'</div>':''}</span><b>${yen(x.rem)}</b></div>`).join('')||'<p class="sub">引落予定はありません</p>';
  $('s-acc').innerHTML=Object.entries(bal).map(([a,v])=>`<div class="kv"><span>${esc(a)}${D.card.includes(a)?'<span class="sub">(未払い)</span>':''}${D.acc.includes(a)?'':'<div class="sub">一覧にない口座です。「設定」→「口座とカード」の「編集」で、正しい口座にまとめられます。</div>'}</span><b class="${v<0?'neg':''}">${yen(v)}</b></div>`).join('');
  {let tot=0,unpaid=0;Object.entries(bal).forEach(([a,v])=>{if(D.card.includes(a))unpaid+=v;else tot+=v});const af=tot+unpaid;
-  $('s-tot').innerHTML=`<div><div class="kv"><span><b>口座の合計</b><div class="sub">カード以外の口座を合わせた額</div></span><b class="${tot<0?'neg':''}">${yen(tot)}</b></div>
-  <div class="kv"><span><b>引き落とし後の合計</b><div class="sub">カードの未払い ${yen(-unpaid)} がすべて引き落とされたあと</div></span><b class="${af<0?'neg':''}">${yen(af)}</b></div></div>`}
+  $('s-tot').innerHTML=`<div><div class="kv"><span><b>口座の合計</b></span><b class="${tot<0?'neg':''}">${yen(tot)}</b></div>
+  <div class="kv"><span><b>引き落とし後の合計</b></span><b class="${af<0?'neg':''}">${yen(af)}</b></div></div>`}
 }
 const PAL=['#4fc79c','#f5c042','#5fa2f0','#ee5a5f','#a984e8','#45cfc6','#e2a45f','#94a3b5'];
 function short(v){return v>=10000?(v/10000).toFixed(v>=100000?0:1)+'万':String(v)}
@@ -257,7 +301,7 @@ function charts(m,inc,out){
  $('g-ratio').innerHTML=inc||out?(inc?`<div class="kv" style="border:0"><span>収入に対する支出</span><b class="${out>inc?'neg':''}">${pct}%</b></div><div style="height:18px;border-radius:9px;background:var(--line);overflow:hidden"><div style="height:100%;width:${w}%;background:${out>inc?'var(--neg)':'var(--ac)'}"></div></div><div class="sub" style="margin-top:6px">${out>inc?'収入より '+yen(out-inc)+' 多く使っています':'収入のうち '+yen(inc-out)+' が残っています'}</div>`:'<p class="sub">この月の収入の記録がありません。支出は '+yen(out)+' です。</p>'):'<p class="sub">この月の記録がありません</p>';
  // ドーナツ
  const mode=$('g-mode').value,map={};
- D.recs.filter(r=>eff(r.type)==='out'&&ym(r.date)===m).forEach(r=>{const k=mode==='sub'?(r.sub||'(細目なし)'):(r.cat||'(未分類)');map[k]=(map[k]||0)+r.amt});
+ D.recs.filter(r=>eff(r.type)==='out'&&ym(r.date)===m).forEach(r=>{const k=mode==='sub'?(r.sub||'細目なし'):(r.cat||'未分類');map[k]=(map[k]||0)+r.amt});
  let ent=Object.entries(map).sort((a,b)=>b[1]-a[1]);
  if(ent.length>8){const rest=ent.slice(7).reduce((a,e)=>a+e[1],0);ent=ent.slice(0,7).concat([['その他いろいろ',rest]])}
  const tot=ent.reduce((a,e)=>a+e[1],0);
@@ -282,20 +326,84 @@ function parseCSV(t){const rows=[];let r=[],c='',q=false;t=t.replace(/^﻿/,'');
  for(let i=0;i<t.length;i++){const ch=t[i];if(q){if(ch=='"'){if(t[i+1]=='"'){c+='"';i++}else q=false}else c+=ch}
   else if(ch=='"')q=true;else if(ch==','){r.push(c);c=''}else if(ch=='\n'){r.push(c);rows.push(r);r=[];c=''}else if(ch!='\r')c+=ch}
  if(c||r.length){r.push(c);rows.push(r)}return rows}
-function addRecs(list){let n=0;list.forEach(r=>{if(r.date&&r.type&&r.acc&&r.amt){D.recs.push(r);n++;
+function addRecs(list){let n=0;list.forEach(r=>{if(r.date&&r.type&&r.acc&&Number.isFinite(r.amt)){D.recs.push(r);n++;if(D.subs&&r.cat&&r.sub&&!subsOf(r.cat).includes(r.sub))subsOf(r.cat).push(r.sub);
   [['type','type'],['acc','acc'],['to','acc'],['cat','cat']].forEach(([k,l])=>{if(r[k]&&!D[l].includes(r[k]))D[l].push(r[k])})}});return n}
 function normDate(s){s=s.trim().replace(/\//g,'-');const m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);return m?`${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`:''}
-let editing=null;
+let editing=null,fromSearch=false;
 function setEdit(i){editing=i;$('b-add').textContent=i===null?'追加':'更新';$('b-cancel').hidden=i===null}
-$('b-cancel').onclick=()=>{setEdit(null);$('f-amt').value='';$('f-sub').value='';$('f-memo').value=''};
-$('b-add').onclick=()=>{const amt=Math.round(+$('f-amt').value);if(!$('f-date').value||!amt)return alert('日付と金額を入れてください');
- const t=$('f-type').value;const nr={date:$('f-date').value,type:t,acc:$('f-acc').value,to:eff(t)==='move'?$('f-to').value:'',cat:$('f-cat').value,sub:$('f-sub').value,amt,memo:$('f-memo').value};if(editing!==null)D.recs[editing]=nr;else D.recs.push(nr);setEdit(null);
- save();$('f-amt').value='';$('f-sub').value='';$('f-memo').value='';fill();render()};
-$('f-type').onchange=typeUi;$('m-sel').onchange=summary;$('g-msel').onchange=()=>{$('m-sel').value=$('g-msel').value;summary()};$('g-mode').onchange=summary;$('l-sel').onchange=render;
-$('list').onclick=e=>{const ed=e.target.dataset.edit;if(ed!==undefined){const r=D.recs[+ed];$('f-date').value=r.date;$('f-type').value=r.type;typeUi();$('f-acc').value=r.acc;$('f-to').value=r.to||'';$('f-cat').value=r.cat;$('f-sub').value=r.sub||'';$('f-amt').value=r.amt;$('f-memo').value=r.memo||'';setEdit(+ed);scrollTo(0,0);return}
+$('b-cancel').onclick=()=>{setEdit(null);$('f-amt').value='';$('f-sub').value='';$('f-memo').value='';syncSub('');if(fromSearch)backToSearch()};
+$('b-add').onclick=()=>{const av=$('f-amt').value.trim(),amt=Math.round(+av);if(!$('f-date').value||av===''||isNaN(amt)||amt<0)return alert('日付と金額を入れてください');
+ const t=$('f-type').value;const nr={date:$('f-date').value,type:t,acc:$('f-acc').value,to:eff(t)==='move'?$('f-to').value:'',cat:$('f-cat').value,sub:$('f-sub').value.trim(),amt,memo:$('f-memo').value};if(nr.sub&&nr.cat&&!subsOf(nr.cat).includes(nr.sub))subsOf(nr.cat).push(nr.sub);if(editing!==null)D.recs[editing]=nr;else D.recs.push(nr);setEdit(null);
+ save();$('f-amt').value='';$('f-sub').value='';$('f-memo').value='';fill();render();if(fromSearch)backToSearch()};
+$('f-type').onchange=typeUi;
+$('f-cat').onchange=()=>{$('f-sub').value='';subUi()};
+$('f-subsel').onchange=()=>{const v=$('f-subsel').value;if(v==='__o'){$('f-sub').value='';$('f-sub').hidden=false;$('f-sub').focus()}else{$('f-sub').value=v;$('f-sub').hidden=true}};
+$('x-cat').onchange=subListUi;
+$('sc-cat').onchange=()=>{smoveSub=null;$('smove-box').hidden=true;subListUi()};
+$('sublist').onclick=e=>{const t=e.target.dataset,c=$('sc-cat').value,l=subsOf(c);
+ if(t.smove!==undefined){smoveSub=t.smove;$('smove-t').textContent=`「${c}／${t.smove}」を移動`;$('smove-to').innerHTML=D.cat.filter(x=>x!==c).map(x=>`<option>${esc(x)}</option>`).join('');$('smove-box').hidden=false;$('smove-box').scrollIntoView({block:'center'});return}
+ if(t.smv){const[v,d]=t.smv.split('|');mv(l,v,+d);save();subListUi();subUi();return}
+ if(t.sren!==undefined){const o=t.sren,n=(prompt(`「${o}」の新しい名前`,o)||'').trim();if(!n||n===o)return;
+  if(l.includes(n)){if(!confirm(`「${n}」はすでにあります。「${o}」を「${n}」にまとめますか?`))return;l.splice(l.indexOf(o),1)}else l[l.indexOf(o)]=n;
+  D.recs.forEach(r=>{if(r.cat===c&&r.sub===o)r.sub=n});(D.fixed||[]).forEach(f=>{if(f.cat===c&&f.sub===o)f.sub=n});save();fill();render();return}
+ if(t.sdel!==undefined&&confirm(`細目の候補「${t.sdel}」を削除しますか?(過去の記録はそのままです)`)){l.splice(l.indexOf(t.sdel),1);save();fill()}};
+let smoveSub=null;
+$('b-smove-c').onclick=()=>{smoveSub=null;$('smove-box').hidden=true};
+$('b-smove').onclick=()=>{const from=$('sc-cat').value,to=$('smove-to').value,x=smoveSub;if(!x||!to)return;
+ const n=D.recs.filter(r=>r.cat===from&&r.sub===x).length;if(!confirm(`「${from}／${x}」を「${to}／${x}」に移しますか?(記録 ${n}件)`))return;
+ D.recs.forEach(r=>{if(r.cat===from&&r.sub===x)r.cat=to});(D.fixed||[]).forEach(f=>{if(f.cat===from&&f.sub===x)f.cat=to});
+ const l=subsOf(from);l.splice(l.indexOf(x),1);if(!subsOf(to).includes(x))subsOf(to).push(x);
+ smoveSub=null;$('smove-box').hidden=true;save();fill();render();alert(`${n}件を移しました`)};
+$('b-ns').onclick=()=>{const c=$('sc-cat').value,n=$('ns-name').value.trim();if(!c)return alert('先に親細目を作ってください');if(!n)return alert('名前を入れてください');const l=subsOf(c);if(l.includes(n))return alert('同じ名前があります');l.push(n);save();$('ns-name').value='';fill()};
+// ---- 検索 ----
+function showGSearch(on){selMode=false;sel.clear();$('g-main').hidden=on;$('g-search').hidden=!on;if(on){gsFill();renderSearch()}scrollTo(0,0)}
+function gsFill(){const km=$('gs-month').value,kc=$('gs-cat').value;
+ $('gs-month').innerHTML='<option value="">すべての期間</option>'+months().map(m=>`<option>${m}</option>`).join('');$('gs-month').value=km;
+ $('gs-cat').innerHTML='<option value="">すべて</option>'+usedCats().map(c=>`<option>${esc(c)}</option>`).join('')+'<option value="__n">親細目なし</option>';$('gs-cat').value=kc;gsSubFill()}
+function gsSubFill(){const c=$('gs-cat').value,ks=$('gs-sub').value,set=new Set(c&&c!=='__n'?subsOf(c):[]);
+ D.recs.forEach(r=>{if((!c||(c==='__n'?!r.cat:r.cat===c))&&r.sub)set.add(r.sub)});
+ $('gs-sub').innerHTML='<option value="">すべて</option>'+[...set].map(x=>`<option>${esc(x)}</option>`).join('')+'<option value="__n">細目なし</option>';$('gs-sub').value=[...set,'__n'].includes(ks)?ks:''}
+function renderSearch(){if($('g-search').hidden)return;const m=$('gs-month').value,c=$('gs-cat').value,sb=$('gs-sub').value,kw=$('gs-kw').value.trim().toLowerCase();
+ const rs=D.recs.map((r,i)=>({...r,i})).filter(r=>(!m||ym(r.date)===m)&&(!c||(c==='__n'?!r.cat:r.cat===c))&&(!sb||(sb==='__n'?!r.sub:r.sub===sb))&&(!kw||((r.sub||'')+' '+(r.memo||'')).toLowerCase().includes(kw))).sort((a,b)=>b.date.localeCompare(a.date)||b.i-a.i);
+ let out=0,inc=0;rs.forEach(r=>{const e=eff(r.type);if(e==='out')out+=r.amt;else if(e==='in')inc+=r.amt});
+ $('gs-sum').innerHTML=`<div class="kv"><span>件数</span><b>${rs.length}件</b></div><div class="kv"><span>支出の合計</span><b class="neg">${yen(out)}</b></div>${inc?`<div class="kv"><span>収入の合計</span><b class="inc">${yen(inc)}</b></div>`:''}`;
+ const showBrk=!!c&&!sb;$('gs-brk-c').hidden=!showBrk;
+ if(showBrk){const bm={};rs.filter(r=>eff(r.type)==='out').forEach(r=>{const k=r.sub||'細目なし';bm[k]=(bm[k]||0)+r.amt});const be=Object.entries(bm).sort((a,b)=>b[1]-a[1]);
+  $('gs-brk').innerHTML=be.map(([k,v])=>`<div class="kv" style="cursor:pointer" data-gsub="${esc(k==='細目なし'?'__n':k)}"><span>${esc(k)} <span class="sub">›</span></span><b>${yen(v)} <span class="sub">${out?Math.round(v/out*100):0}%</span></b></div>`).join('')||'<p class="sub">支出はありません</p>'}
+ $('gs-cnt').textContent=`記録(${rs.length}件)`;
+ gsLast=rs.slice(0,300).map(r=>r.i);[...sel].forEach(i=>{if(!gsLast.includes(i))sel.delete(i)});
+ $('gs-list').innerHTML=rs.slice(0,300).map(r=>`<div class="rec"${selMode?` data-row="${r.i}" style="cursor:pointer;${sel.has(r.i)?'background:color-mix(in srgb,var(--ac) 14%,transparent);':''}"`:''}>${selMode?`<input type="checkbox" data-ck="${r.i}"${sel.has(r.i)?' checked':''} style="width:auto;margin:4px 8px 0 0;flex:none">`:''}<div style="flex:1"><div>${esc(r.date)} ${esc(r.cat||'')}${r.sub?'／'+esc(r.sub):''}</div><div class="sub">${esc(r.type)}・${esc(r.acc)}${r.to?'→'+esc(r.to):''}${r.memo?'・'+esc(r.memo):''}</div></div>
+  <div style="text-align:right"><b class="${eff(r.type)==='out'?'neg':eff(r.type)==='in'?'inc':''}">${yen(r.amt)}</b>${selMode?'':`<button class="x" data-sedit="${r.i}">編集</button><button class="x" data-sdl="${r.i}">削除</button>`}</div></div>`).join('')+(rs.length>300?'<p class="sub">新しい300件まで表示しています。期間や条件で絞り込んでください。</p>':'')||'<p class="sub">当てはまる記録はありません</p>';selUi()}
+let selMode=false,sel=new Set(),gsLast=[];
+function gbFill(){const kc=$('gb-cat').value;$('gb-cat').innerHTML='<option value="">変えない</option>'+D.cat.map(c=>`<option>${esc(c)}</option>`).join('')+'<option value="__n">なし</option>';$('gb-cat').value=kc;gbSubFill()}
+function gbSubFill(){const gc=$('gb-cat').value,c=gc==='__n'?'':gc||($('gs-cat').value&&$('gs-cat').value!=='__n'?$('gs-cat').value:''),ks=$('gb-sub').value,l=c?subsOf(c):[];
+ $('gb-sub').innerHTML='<option value="">変えない</option><option value="__n">なし</option>'+l.map(x=>`<option>${esc(x)}</option>`).join('')+'<option value="__o">手入力</option>';
+ $('gb-sub').value=[...l,'__n','__o'].includes(ks)?ks:'';$('gb-subin').hidden=$('gb-sub').value!=='__o'}
+function selUi(){$('gs-selbtn').textContent=selMode?'完了':'選択';$('gs-bulk').hidden=!selMode;$('gs-selcnt').textContent=`${sel.size}件を選択中`;$('gs-all').textContent=gsLast.length&&gsLast.every(i=>sel.has(i))?'選択を解除':'すべて選択'}
+function backToSearch(){fromSearch=false;document.querySelector('nav button[data-v=graph]').click();showGSearch(true)}
+$('g-go').onclick=()=>showGSearch(true);$('gs-back').onclick=()=>showGSearch(false);
+$('gs-month').onchange=renderSearch;$('gs-cat').onchange=()=>{gsSubFill();renderSearch()};$('gs-sub').onchange=renderSearch;$('gs-kw').oninput=renderSearch;
+$('gs-brk').onclick=e=>{const r=e.target.closest('[data-gsub]');if(r){$('gs-sub').value=r.dataset.gsub;renderSearch()}};
+$('gs-selbtn').onclick=()=>{selMode=!selMode;sel.clear();if(selMode)gbFill();renderSearch()};
+$('gs-all').onclick=()=>{const all=gsLast.every(i=>sel.has(i));gsLast.forEach(i=>all?sel.delete(i):sel.add(i));renderSearch()};
+$('gb-cat').onchange=gbSubFill;$('gb-sub').onchange=()=>{$('gb-subin').hidden=$('gb-sub').value!=='__o';if(!$('gb-subin').hidden)$('gb-subin').focus()};
+$('gb-apply').onclick=()=>{if(!sel.size)return alert('記録を選んでください');const c=$('gb-cat').value,sv=$('gb-sub').value,si=$('gb-subin').value.trim();
+ if(!c&&!sv)return alert('変更する内容を選んでください');if(sv==='__o'&&!si)return alert('細目を入力してください');
+ const ns=sv==='__n'?'':sv==='__o'?si:sv;const desc=[c?`親細目→「${c==='__n'?'なし':c}」`:'',sv?`細目→「${ns||'なし'}」`:''].filter(Boolean).join('、');
+ if(!confirm(`選んだ ${sel.size}件 を、${desc} に変更しますか?`))return;
+ sel.forEach(i=>{const r=D.recs[i];if(c)r.cat=c==='__n'?'':c;if(sv)r.sub=ns;if(r.cat&&r.sub&&!subsOf(r.cat).includes(r.sub))subsOf(r.cat).push(r.sub)});
+ const n=sel.size;sel.clear();save();fill();render();gsFill();renderSearch();alert(`${n}件を変更しました`)};
+$('gb-del').onclick=()=>{if(!sel.size)return alert('記録を選んでください');if(!confirm(`選んだ ${sel.size}件 を削除しますか?元に戻せません。`))return;
+ [...sel].sort((a,b)=>b-a).forEach(i=>D.recs.splice(i,1));const n=sel.size;sel.clear();setEdit(null);save();fill();render();gsFill();renderSearch();alert(`${n}件を削除しました`)};
+$('gs-list').onclick=e=>{if(selMode){const row=e.target.closest('[data-row]');if(!row)return;const i=+row.dataset.row;sel.has(i)?sel.delete(i):sel.add(i);renderSearch();return}
+ const t=e.target.dataset;
+ if(t.sedit!==undefined){fromSearch=true;document.querySelector('nav button[data-v=add]').click();editRec(+t.sedit);return}
+ if(t.sdl!==undefined&&confirm('この記録を削除しますか?')){D.recs.splice(+t.sdl,1);setEdit(null);save();fill();render();gsFill();renderSearch()}};$('m-sel').onchange=summary;$('g-msel').onchange=()=>{$('m-sel').value=$('g-msel').value;summary()};$('g-mode').onchange=summary;$('l-sel').onchange=render;
+function editRec(i){const r=D.recs[i];$('f-date').value=r.date;$('f-type').value=r.type;typeUi();$('f-acc').value=r.acc;$('f-to').value=r.to||'';$('f-cat').value=r.cat;$('f-sub').value=r.sub||'';subUi();$('f-amt').value=r.amt;$('f-memo').value=r.memo||'';setEdit(i);scrollTo(0,0)}
+$('list').onclick=e=>{const ed=e.target.dataset.edit;if(ed!==undefined){fromSearch=false;editRec(+ed);return}
  const i=e.target.dataset.del;if(i!==undefined&&confirm('この記録を削除しますか?')){D.recs.splice(+i,1);setEdit(null);save();fill();render()}};
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
- ['add','sum','graph','save','set'].forEach(v=>$('v-'+v).hidden=v!==b.dataset.v);if(b.dataset.v==='set')showSec('');if(b.dataset.v==='sum'||b.dataset.v==='graph')summary();if(b.dataset.v==='save')renderSave()});
+ ['add','sum','graph','save','set'].forEach(v=>$('v-'+v).hidden=v!==b.dataset.v);if(b.dataset.v==='set')showSec('');if(b.dataset.v==='graph'&&!fromSearch)showGSearch(false);if(b.dataset.v!=='add'&&editing!==null&&fromSearch){}if(b.dataset.v==='sum'||b.dataset.v==='graph')summary();if(b.dataset.v==='save')renderSave()});
 $('b-goal').onclick=()=>{const amt=Math.round(+$('g-amt').value),name=$('g-name').value.trim();if(!name||!amt||!$('g-due').value||!$('g-acc').value)return alert('名前・金額・期限・口座を入れてください');
  D.goal={name,amt,due:$('g-due').value,acc:$('g-acc').value};save();$('sv-det').open=false;renderSave()};
 $('sv-det').ontoggle=()=>{const g=D.goal;if($('sv-det').open&&g){$('g-name').value=g.name;$('g-amt').value=g.amt;$('g-due').value=g.due;$('g-acc').value=g.acc}};
@@ -307,14 +415,15 @@ $('r-later').onclick=()=>{D.snooze=today();save();remindUi()};
 $('b-rd').onclick=()=>{const v=Math.round(+$('r-days').value);D.remindDays=isNaN(v)||v<0?30:v;save();remindUi();alert(D.remindDays?D.remindDays+'日ごとにお知らせします':'お知らせをオフにしました')};
 $('b-imp').onclick=()=>$('f-file').click();
 $('f-file').onchange=async e=>{const f=e.target.files[0];if(!f)return;const t=await f.text();let n=0;
- try{if(f.name.endsWith('.json')){const j=JSON.parse(t);if(confirm('JSONを読み込みます。現在のデータは置き換えられます。よろしいですか?')){D=Object.assign({},DEF,j);n=D.recs.length}}
+ try{if(f.name.endsWith('.json')){const j=JSON.parse(t);if(confirm('JSONを読み込みます。現在のデータは置き換えられます。よろしいですか?')){D=Object.assign({},DEF,j);ensureSubs();n=D.recs.length}}
   else{const rows=parseCSV(t);const h=rows.shift().map(s=>s.trim());const ix=k=>h.indexOf(k);
    n=addRecs(rows.filter(r=>r.length>3).map(r=>({date:normDate(r[ix('日付')]||''),type:(r[ix('収支')]||'').trim(),acc:(r[ix('口座')]||'').trim(),to:(r[ix('振替先')]||'').trim(),cat:(r[ix('親細目')]||'').trim(),sub:(r[ix('細目')]||'').trim(),amt:Math.round(+(r[ix('金額（円）')]||0)),memo:r[ix('メモ')]||''})))}
   save();fill();render();alert(n+' 件を読み込みました')}catch(err){alert('読み込めませんでした: '+err.message)}e.target.value=''};
 $('b-type').onclick=()=>{const n=$('t-name').value.trim();if(!n)return alert('名前を入れてください');if(D.type.includes(n))return alert('同じ名前があります');
  D.type.push(n);D.typeEff=D.typeEff||{};D.typeEff[n]=$('t-eff').value;save();$('t-name').value='';fill();render()};
 $('typecfg').onchange=e=>{const t=e.target.dataset.te;if(t===undefined)return;D.typeEff=D.typeEff||{};D.typeEff[t]=e.target.value;save();fill();render()};
-$('typecfg').onclick=e=>{const rn=e.target.dataset.trren;if(rn!==undefined){const nn=(prompt(`「${rn}」の新しい名前`,rn)||'').trim();if(!nn||nn===rn)return;if(D.type.includes(nn))return alert('同じ名前があります');
+$('typecfg').onclick=e=>{if(e.target.dataset.tmv){const[v,d]=e.target.dataset.tmv.split('|');if(mv(D.type,v,+d)){save();fill()}return}
+ const rn=e.target.dataset.trren;if(rn!==undefined){const nn=(prompt(`「${rn}」の新しい名前`,rn)||'').trim();if(!nn||nn===rn)return;if(D.type.includes(nn))return alert('同じ名前があります');
  D.type[D.type.indexOf(rn)]=nn;D.recs.forEach(r=>{if(r.type===rn)r.type=nn});D.typeEff=D.typeEff||{};D.typeEff[nn]=eff(rn);delete D.typeEff[rn];save();fill();render();return}
  const t=e.target.dataset.trdel;if(t===undefined)return;const n=D.recs.filter(r=>r.type===t).length;
  if(n)return alert(`「${t}」は ${n} 件の記録で使われているので、削除できません`);if(D.type.length<2)return alert('最後の1つは削除できません');
@@ -331,7 +440,8 @@ $('acclist').onclick=e=>{const t=e.target.dataset;
 $('acclist').onchange=e=>{const a=e.target.dataset.acard;if(a===undefined)return;if(e.target.checked){if(!D.card.includes(a))D.card.push(a)}else D.card=D.card.filter(x=>x!==a);save();fill();render()};
 $('b-na').onclick=()=>{const n=$('na-name').value.trim();if(!n)return alert('名前を入れてください');if(D.acc.includes(n))return alert('同じ名前の口座があります');
  D.acc.push(n);if($('na-card').checked)D.card.push(n);save();$('na-name').value='';$('na-card').checked=false;fill();render()};
-$('catlist').onclick=e=>{const t=e.target.dataset;if(t.cren!==undefined)return askRename(t.cren,true);
+$('catlist').onclick=e=>{const t=e.target.dataset;if(t.cmv){const[v,d]=t.cmv.split('|');if(mv(D.cat,v,+d)){save();fill()}return}
+ if(t.cren!==undefined)return askRename(t.cren,true);
  if(t.cdel!==undefined){const c=t.cdel;if(D.recs.some(r=>r.cat===c)||(D.fixed||[]).some(f=>f.cat===c))return alert(`「${c}」は記録で使われているので、削除できません。名前を変えるか、別の親細目にまとめてください。`);
   if(confirm(`「${c}」を削除しますか?`)){D.cat=D.cat.filter(x=>x!==c);save();fill();render()}}};
 $('b-nc').onclick=()=>{const n=$('nc-name').value.trim();if(!n)return alert('名前を入れてください');if(D.cat.includes(n))return alert('同じ名前があります');D.cat.push(n);save();$('nc-name').value='';fill();render()};
